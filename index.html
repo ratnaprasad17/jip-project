@@ -776,7 +776,7 @@ footer strong {
 
             <div class="form-group">
                 <label for="adminPasskey">Passkey</label>
-                <input class="admin-input" id="adminPasskey" type="password" autocomplete="current-password" required>
+                <div class="password-field"><input class="admin-input" id="adminPasskey" type="password" autocomplete="current-password" required><button class="password-toggle" type="button" aria-label="Show passkey" title="Show passkey" onclick="togglePassword('adminPasskey', this)">&#128065;</button></div>
             </div>
 
             <button class="primary-btn" type="submit" style="width:100%">
@@ -1150,7 +1150,8 @@ async function studentLogin() {
         const student = snapshot.val();
         if (!student || student.status !== "approved") {
             await firebase.auth().signOut();
-            throw new Error("Your account is waiting for founder approval.");
+            message.innerText = "Your account is waiting for admin approval.";
+            return;
         }
         document.body.classList.remove("auth-locked", "founder-login");
         document.getElementById("authGate").hidden = true;
@@ -1163,7 +1164,7 @@ async function studentLogin() {
         );
         message.innerText = student && student.status === "approved"
             ? "Local login approved. Firebase access is unavailable for shared internships."
-            : "Your account is waiting for admin approval.";
+            : "Unable to log in. Check your email and password, then try again.";
         if (student && student.status === "approved") {
             document.body.classList.remove("auth-locked", "founder-login");
             document.getElementById("authGate").hidden = true;
