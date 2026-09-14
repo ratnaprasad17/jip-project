@@ -1,0 +1,10 @@
+#!/bin/sh
+
+branch=$(git symbolic-ref --quiet --short HEAD) || exit 0
+git rev-parse --abbrev-ref "$branch@{upstream}" >/dev/null 2>&1 || {
+    echo "No upstream configured for $branch; commit was not pushed."
+    exit 0
+}
+
+echo "Pushing commit on $branch..."
+git push
