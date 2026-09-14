@@ -1,0 +1,1714 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>InternMatch - Find Your Internship</title>
+
+<style>
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: "Trebuchet MS", Arial, sans-serif;
+}
+
+body {
+    background: #f5f7fb;
+    color: #172033;
+    line-height: 1.4;
+}
+
+body.auth-locked > *:not(#authGate),
+body.founder-login > *:not(#admin) { display: none; }
+body.founder-login #admin { display: block; }
+#authGate {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: linear-gradient(rgba(15, 23, 42, .56), rgba(15, 23, 42, .64)), url("./ssri%20vasavi.png") center / cover;
+}
+.auth-card { width: min(460px, 100%); padding: 32px; background: rgba(255,255,255,.55); border: 1px solid rgba(255,255,255,.5); border-radius: 20px; box-shadow: 0 18px 50px rgba(15,118,110,.16); backdrop-filter: blur(8px); }
+.auth-card h1 { color: #0f766e; margin-bottom: 8px; }
+.auth-card p { color: #64748b; margin-bottom: 22px; }
+.auth-card input { width: 100%; padding: 12px; margin-top: 6px; border: 1px solid #d5dbe5; border-radius: 9px; }
+.auth-card label { display: block; margin-top: 13px; font-weight: bold; }
+.password-field { position: relative; }
+.password-field input { padding-right: 44px; }
+.password-toggle { position: absolute; right: 8px; bottom: 7px; border: 0; background: transparent; color: #64748b; padding: 5px; line-height: 1; cursor: pointer; }
+.password-toggle:hover { color: #0f766e; }
+.auth-message { min-height: 22px; margin-top: 14px; color: #be123c; font-size: 14px; }
+.auth-link { border: 0; background: none; color: #0f766e; font-weight: bold; cursor: pointer; }
+
+button, input, select {
+    font: inherit;
+}
+
+button {
+    cursor: pointer;
+}
+
+.navbar {
+    height: 70px;
+    background: white;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 7%;
+    border-bottom: 1px solid #e8eaf0;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.logo {
+    font-size: 24px;
+    font-weight: bold;
+    color: #0f766e;
+}
+
+.logo span {
+    color: #111827;
+}
+
+.nav-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.nav-btn {
+    border: none;
+    background: transparent;
+    padding: 10px 15px;
+    color: #475569;
+}
+
+.nav-btn:hover {
+    color: #0f766e;
+}
+.page {
+    display: none;
+}
+
+.page.active {
+    display: block;
+}
+
+.hero {
+    padding: 78px 7% 58px;
+    background:
+        radial-gradient(circle at 12% 15%, rgba(251, 191, 36, .22), transparent 28%),
+        linear-gradient(135deg, #dff7f3, #f8fafc 58%, #fff7ed);
+}
+
+.hero-content {
+    max-width: 900px;
+    margin: auto;
+    text-align: center;
+}
+
+.badge {
+    display: inline-block;
+    background: #e0e7ff;
+    color: #4338ca;
+    padding: 8px 15px;
+    border-radius: 30px;
+    font-size: 14px;
+    margin-bottom: 18px;
+}
+
+.hero h1 {
+    font-size: clamp(38px, 6vw, 64px);
+    margin-bottom: 18px;
+}
+
+.gradient-text {
+    color: #0f766e;
+}
+
+.hero p {
+    color: #64748b;
+    font-size: 18px;
+    line-height: 1.6;
+    margin-bottom: 28px;
+}
+
+.primary-btn {
+    background: #0f766e;
+    color: white;
+    border: none;
+    border-radius: 12px;
+    padding: 14px 25px;
+    font-weight: bold;
+    transition: .2s;
+}
+
+.primary-btn:hover {
+    background: #115e59;
+    transform: translateY(-2px);
+}
+
+.section {
+    max-width: 1200px;
+    margin: auto;
+    padding: 45px 20px;
+}
+
+.section-title {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.section-title h2 {
+    font-size: 26px;
+}
+
+.section-title span {
+    color: #64748b;
+    font-size: 14px;
+}
+
+.hero-stats {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 34px;
+}
+
+.hero-stat {
+    min-width: 145px;
+    padding: 13px 18px;
+    background: rgba(255, 255, 255, .72);
+    border: 1px solid rgba(15, 118, 110, .14);
+    border-radius: 12px;
+}
+
+.hero-stat strong {
+    display: block;
+    color: #0f766e;
+    font-size: 22px;
+}
+
+.hero-stat span {
+    color: #64748b;
+    font-size: 12px;
+}
+
+.featured-wrapper {
+    overflow: hidden;
+}
+
+.featured {
+    display: flex;
+    gap: 20px;
+    overflow-x: auto;
+    scroll-behavior: smooth;
+    padding-bottom: 10px;
+    scrollbar-width: thin;
+    scrollbar-color: #99f6e4 transparent;
+}
+
+.featured::-webkit-scrollbar {
+    display: none;
+}
+
+.feature-card {
+    min-width: 310px;
+    background: linear-gradient(135deg, #4f46e5, #7c3aed);
+    color: white;
+    padding: 25px;
+    border-radius: 20px;
+    box-shadow: 0 10px 25px rgba(79,70,229,.2);
+}
+
+.feature-card .company {
+    opacity: .8;
+    margin: 7px 0 18px;
+}
+
+.feature-card h3 {
+    font-size: 21px;
+}
+
+.feature-info {
+    margin: 10px 0;
+    font-size: 14px;
+}
+
+.feature-card button {
+    margin-top: 15px;
+    background: white;
+    color: #4f46e5;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 9px;
+    font-weight: bold;
+}
+
+.search-box {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 25px;
+}
+
+.search-box input {
+    flex: 1;
+    padding: 14px;
+    border: 1px solid #d8dee9;
+    border-radius: 12px;
+    outline: none;
+    background: white;
+}
+
+.internship-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+}
+
+.card {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 18px;
+    padding: 22px;
+    transition: .2s;
+}
+
+.card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 25px rgba(0,0,0,.07);
+}
+
+.card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: start;
+}
+
+.company-logo {
+    width: 45px;
+    height: 45px;
+    border-radius: 12px;
+    background: #eef2ff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+}
+
+.bookmark {
+    border: none;
+    background: transparent;
+    font-size: 23px;
+}
+
+.card h3 {
+    margin: 17px 0 6px;
+}
+
+.company {
+    color: #64748b;
+    font-size: 14px;
+}
+
+.tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+    margin: 15px 0;
+}
+
+.tag {
+    background: #f1f5f9;
+    color: #475569;
+    padding: 6px 9px;
+    border-radius: 7px;
+    font-size: 12px;
+}
+
+.details {
+    display: grid;
+    gap: 8px;
+    color: #475569;
+    font-size: 14px;
+}
+
+.card-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 18px;
+}
+
+.secondary-btn {
+    flex: 1;
+    border: 1px solid #dbe1ea;
+    background: white;
+    color: #334155;
+    padding: 11px;
+    border-radius: 9px;
+}
+
+.small-primary {
+    flex: 1;
+    border: none;
+    background: #0f766e;
+    color: white;
+    padding: 11px;
+    border-radius: 9px;
+}
+
+.danger-btn {
+    border: 1px solid #fecaca;
+    background: #fff1f2;
+    color: #be123c;
+    padding: 11px 16px;
+    border-radius: 9px;
+    font-weight: bold;
+}
+
+.danger-btn:hover {
+    background: #ffe4e6;
+}
+
+.form-container {
+    max-width: 700px;
+    margin: 45px auto;
+    padding: 30px;
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.05);
+}
+
+.form-container h2 {
+    margin-bottom: 8px;
+}
+
+.form-subtitle {
+    color: #64748b;
+    margin-bottom: 25px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 8px;
+}
+
+.form-group input,
+.form-group select {
+    width: 100%;
+    padding: 13px;
+    border: 1px solid #d5dbe5;
+    border-radius: 10px;
+    background: white;
+}
+
+.choice-row {
+    display: flex;
+    gap: 12px;
+}
+
+.choice {
+    flex: 1;
+    border: 2px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 15px;
+    text-align: center;
+    cursor: pointer;
+}
+
+.choice.selected {
+    border-color: #4f46e5;
+    background: #eef2ff;
+    color: #4338ca;
+    font-weight: bold;
+}
+
+.admin-container {
+    max-width: 850px;
+    margin: 45px auto;
+    padding: 30px;
+    background: white;
+    border-radius: 20px;
+}
+
+.admin-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+}
+
+.admin-grid .full {
+    grid-column: 1 / -1;
+}
+
+.admin-input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #d5dbe5;
+    border-radius: 9px;
+}
+
+.admin-label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 6px;
+}
+
+.admin-login {
+    max-width: 460px;
+    margin: 45px auto;
+    padding: 30px;
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.05);
+}
+
+.admin-login h2 {
+    margin-bottom: 8px;
+}
+
+.admin-login p {
+    color: #64748b;
+    margin-bottom: 25px;
+}
+
+.login-error {
+    min-height: 20px;
+    margin-top: 12px;
+    color: #be123c;
+    font-size: 14px;
+}
+
+.logout-btn {
+    float: right;
+    border: 1px solid #dbe1ea;
+    background: white;
+    color: #334155;
+    padding: 8px 12px;
+    border-radius: 9px;
+}
+
+.modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.55);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.modal.show {
+    display: flex;
+}
+
+.modal-content {
+    max-width: 600px;
+    width: 100%;
+    background: white;
+    padding: 30px;
+    border-radius: 20px;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.close {
+    float: right;
+    border: none;
+    background: none;
+    font-size: 25px;
+}
+
+footer {
+    margin-top: 50px;
+    padding: 30px;
+    text-align: center;
+    background: #111827;
+    color: #9ca3af;
+}
+
+footer strong {
+    color: white;
+}
+
+@media(max-width: 650px) {
+    .navbar {
+        padding: 0 4%;
+    }
+
+    .nav-btn {
+        padding: 8px;
+        font-size: 12px;
+    }
+
+    .hero {
+        padding: 50px 20px;
+    }
+
+    .section {
+        padding: 35px 15px;
+    }
+
+    .form-container,
+    .admin-container {
+        margin: 25px 15px;
+        padding: 22px;
+    }
+
+    .admin-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .admin-grid .full {
+        grid-column: auto;
+    }
+}
+</style>
+</head>
+<body class="auth-locked">
+
+<section id="authGate">
+    <div class="auth-card">
+        <h1>InternMatch</h1>
+        <p id="authSubtitle">Login with an approved student account.</p>
+        <form id="studentLoginForm" onsubmit="event.preventDefault(); studentLogin();">
+            <label>Email<input id="studentLoginEmail" type="email" required></label>
+            <label class="password-field">Password<input id="studentLoginPassword" type="password" required><button class="password-toggle" type="button" aria-label="Show password" title="Show password" onclick="togglePassword('studentLoginPassword', this)">&#128065;</button></label>
+            <button class="primary-btn" type="submit" style="width:100%;margin-top:20px">Student Login</button>
+            <p class="auth-message" id="studentLoginMessage"></p>
+            <button class="auth-link" type="button" onclick="showRegistration()">New student? Register here</button>
+            <br><button class="auth-link" type="button" onclick="openFounderLogin()">Founder/Admin login</button>
+        </form>
+        <form id="studentRegistrationForm" hidden onsubmit="event.preventDefault(); registerStudent();">
+            <label>Full Name<input id="registerName" required></label>
+            <label>Email<input id="registerEmail" type="email" required></label>
+            <label>Phone Number<input id="registerPhone" required></label>
+            <label>College / Branch<input id="registerBranch" required></label>
+            <label>Roll Number<input id="registerRoll" required></label>
+            <label class="password-field">Password<input id="registerPassword" type="password" minlength="6" required><button class="password-toggle" type="button" aria-label="Show password" title="Show password" onclick="togglePassword('registerPassword', this)">&#128065;</button></label>
+            <button class="primary-btn" type="submit" style="width:100%;margin-top:20px">Submit Registration</button>
+            <p class="auth-message" id="registrationMessage"></p>
+            <button class="auth-link" type="button" onclick="showStudentLogin()">Back to student login</button>
+        </form>
+    </div>
+</section>
+
+<nav class="navbar">
+    <div class="logo">Intern<span>Match</span></div>
+
+    <div class="nav-buttons">
+        <button class="nav-btn" onclick="showPage('home')">Home</button>
+        <button class="nav-btn" onclick="showPage('preferences')">Find Internship</button>
+        <button class="nav-btn" onclick="showPage('admin')">Admin</button>
+    </div>
+</nav>
+
+<section id="home" class="page active">
+    <div class="hero">
+        <div class="hero-content">
+            <div class="badge">🎓 Built for Students & Graduates</div>
+
+            <h1>
+                Find Your
+                <span class="gradient-text">Perfect Internship</span>
+                🚀
+            </h1>
+
+            <p>
+                Discover online and offline internships matched
+                with your education, skills, branch and career goals.
+            </p>
+
+            <button class="primary-btn" onclick="showPage('preferences')">
+                Find My Internship →
+            </button>
+
+            <div class="hero-stats" aria-label="Internship highlights">
+                <div class="hero-stat">
+                    <strong id="internshipCount">0</strong>
+                    <span>current opportunities</span>
+                </div>
+                <div class="hero-stat">
+                    <strong id="onlineCount">0</strong>
+                    <span>online options</span>
+                </div>
+                <div class="hero-stat">
+                    <strong>Daily</strong>
+                    <span>developer updates</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">
+            <h2>🔥 Featured Internships</h2>
+            <span>Updated daily by our team</span>
+        </div>
+
+        <div class="featured-wrapper">
+            <div class="featured" id="featuredContainer"></div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">
+            <h2>⭐ Latest Internships</h2>
+            <span>Compare roles, places and stipends</span>
+        </div>
+
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="Search internships, skills, companies..." oninput="displayInternships()">
+        </div>
+
+        <div class="internship-grid" id="internshipContainer"></div>
+    </div>
+</section>
+
+<section id="preferences" class="page">
+    <div class="form-container">
+        <h2>🎯 Tell Us About Yourself</h2>
+        <p class="form-subtitle">We'll find internships that match your profile.</p>
+
+        <div class="form-group">
+            <label>What type of internship do you want?</label>
+            <div class="choice-row">
+                <div class="choice selected" id="onlineChoice" onclick="selectType('Online')">🌐 Online</div>
+                <div class="choice" id="offlineChoice" onclick="selectType('Offline')">🏢 Offline</div>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Your Branch</label>
+            <select id="branch">
+                <option value="">Select Branch</option>
+                <option>Computer Science</option>
+                <option>Artificial Intelligence</option>
+                <option>Information Technology</option>
+                <option>Electronics & Communication</option>
+                <option>Electrical Engineering</option>
+                <option>Mechanical Engineering</option>
+                <option>Civil Engineering</option>
+                <option>Business / Management</option>
+                <option>Other</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Specialization / Interest</label>
+            <select id="specialization">
+                <option value="">Select Specialization</option>
+                <option>Artificial Intelligence</option>
+                <option>Machine Learning</option>
+                <option>Data Science</option>
+                <option>Web Development</option>
+                <option>App Development</option>
+                <option>Cyber Security</option>
+                <option>Cloud Computing</option>
+                <option>Blockchain</option>
+                <option>Electronics</option>
+                <option>Robotics</option>
+                <option>Marketing</option>
+                <option>Finance</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Your Skills</label>
+            <input type="text" id="skills" placeholder="Example: Python, SQL, Machine Learning">
+        </div>
+
+        <div class="form-group">
+            <label>Preferred Location</label>
+            <input type="text" id="location" placeholder="Example: Hyderabad, Bangalore, Chennai">
+        </div>
+
+        <div class="form-group">
+            <label>Graduation Year</label>
+            <select id="graduation">
+                <option>2026</option>
+                <option>2027</option>
+                <option>2028</option>
+                <option>2029</option>
+            </select>
+        </div>
+
+        <button class="primary-btn" style="width:100%" onclick="findMatches()">
+            🔍 Find My Internships
+        </button>
+    </div>
+</section>
+
+<section id="results" class="page">
+    <div class="section">
+        <button class="secondary-btn" onclick="showPage('preferences')" style="margin-bottom:20px">
+            ← Change Preferences
+        </button>
+
+        <h1>🎯 Recommended For You</h1>
+        <p id="resultMessage" style="color:#64748b;margin:10px 0 25px"></p>
+
+        <div class="internship-grid" id="resultsContainer"></div>
+    </div>
+</section>
+
+<section id="admin" class="page">
+    <div class="admin-login" id="adminLoginPanel">
+        <h2>Admin Login</h2>
+        <p>Sign in to manage internship listings.</p>
+
+        <form onsubmit="event.preventDefault(); adminLogin();">
+            <div class="form-group">
+                <label for="adminLoginId">Admin ID</label>
+                <input class="admin-input" id="adminLoginId" autocomplete="username" required>
+            </div>
+
+            <div class="form-group">
+                <label for="adminPasskey">Passkey</label>
+                <input class="admin-input" id="adminPasskey" type="password" autocomplete="current-password" required>
+            </div>
+
+            <button class="primary-btn" type="submit" style="width:100%">
+                Login
+            </button>
+
+            <div class="login-error" id="loginError" role="alert"></div>
+            <button class="auth-link" type="button" onclick="returnToStudentLogin()">Back to Student Login</button>
+        </form>
+    </div>
+
+    <div class="admin-container" id="adminDashboard" hidden>
+        <button class="logout-btn" onclick="adminLogout()">Logout</button>
+        <h2>👨‍💻 Developer / Admin Dashboard</h2>
+
+        <p style="color:#64748b;margin:8px 0 25px">
+            Add new internships here. In the final application,
+            this section should connect to a database.
+        </p>
+        <p style="color:#be123c;margin:-10px 0 25px;font-size:14px">
+            Before Firebase is connected, changes are saved only on this device and will not appear on other phones or computers.
+        </p>
+
+        <div class="admin-grid">
+            <div>
+                <label class="admin-label">Internship Title</label>
+                <input class="admin-input" id="adminTitle" placeholder="Machine Learning Intern">
+            </div>
+
+            <div>
+                <label class="admin-label">Company</label>
+                <input class="admin-input" id="adminCompany" placeholder="Company Name">
+            </div>
+
+            <div>
+                <label class="admin-label">Type</label>
+                <select class="admin-input" id="adminType">
+                    <option>Online</option>
+                    <option>Offline</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="admin-label">Branch</label>
+                <select class="admin-input" id="adminBranch">
+                    <option>Computer Science</option>
+                    <option>Artificial Intelligence</option>
+                    <option>Information Technology</option>
+                    <option>Electronics & Communication</option>
+                    <option>Mechanical Engineering</option>
+                    <option>Civil Engineering</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="admin-label">Specialization</label>
+                <input class="admin-input" id="adminSpecialization" placeholder="Machine Learning">
+            </div>
+
+            <div>
+                <label class="admin-label">Location</label>
+                <input class="admin-input" id="adminLocation" placeholder="Hyderabad">
+            </div>
+
+            <div>
+                <label class="admin-label">Stipend</label>
+                <input class="admin-input" id="adminStipend" placeholder="₹15,000/month">
+            </div>
+
+            <div>
+                <label class="admin-label">Duration</label>
+                <input class="admin-input" id="adminDuration" placeholder="3 Months">
+            </div>
+
+            <div class="full">
+                <label class="admin-label">Skills</label>
+                <input class="admin-input" id="adminSkills" placeholder="Python, SQL, Machine Learning">
+            </div>
+
+            <div class="full">
+                <label class="admin-label">Application Link</label>
+                <input class="admin-input" id="adminLink" placeholder="https://example.com/apply">
+            </div>
+        </div>
+
+        <button class="primary-btn" style="margin-top:20px" onclick="addInternship()">
+            + Publish Internship
+        </button>
+
+        <div class="section-title" style="margin-top:35px">
+            <h3>Manage Internships</h3>
+            <span id="adminInternshipCount"></span>
+        </div>
+
+        <div id="adminInternshipList"></div>
+
+        <div class="section-title" style="margin-top:35px">
+            <h3>Student Registrations</h3>
+            <span>Founder approval required</span>
+        </div>
+        <div id="studentRequestList"></div>
+    </div>
+</section>
+
+<div class="modal" id="detailsModal">
+    <div class="modal-content">
+        <button class="close" onclick="closeModal()">×</button>
+        <div id="modalBody"></div>
+    </div>
+</div>
+
+<footer>
+    <strong>InternMatch</strong>
+    <br><br>
+    Helping students and graduates find better internships.
+    <br><br>
+    © 2026 InternMatch — Student Project
+</footer>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script>
+let internships = [
+    {
+        id: 1,
+        title: "Machine Learning Intern",
+        company: "TechNova AI",
+        type: "Online",
+        branch: "Computer Science",
+        specialization: "Machine Learning",
+        location: "Remote",
+        stipend: "₹15,000/month",
+        duration: "3 Months",
+        skills: ["Python", "Machine Learning", "TensorFlow"],
+        description: "Work on real-world machine learning projects and build predictive models.",
+        link: "#"
+    },
+    {
+        id: 2,
+        title: "Data Science Intern",
+        company: "DataWorks",
+        type: "Online",
+        branch: "Artificial Intelligence",
+        specialization: "Data Science",
+        location: "Remote",
+        stipend: "₹12,000/month",
+        duration: "2 Months",
+        skills: ["Python", "SQL", "Pandas"],
+        description: "Analyze datasets and create useful business insights using data science.",
+        link: "#"
+    },
+    {
+        id: 3,
+        title: "Web Development Intern",
+        company: "WebCraft Solutions",
+        type: "Offline",
+        branch: "Computer Science",
+        specialization: "Web Development",
+        location: "Hyderabad",
+        stipend: "₹10,000/month",
+        duration: "3 Months",
+        skills: ["HTML", "CSS", "JavaScript"],
+        description: "Build modern websites and web applications with an experienced development team.",
+        link: "#"
+    },
+    {
+        id: 4,
+        title: "AI Research Intern",
+        company: "FutureAI Labs",
+        type: "Online",
+        branch: "Artificial Intelligence",
+        specialization: "Artificial Intelligence",
+        location: "Remote",
+        stipend: "₹20,000/month",
+        duration: "6 Months",
+        skills: ["Python", "Deep Learning", "PyTorch"],
+        description: "Explore modern AI techniques and contribute to experimental research projects.",
+        link: "#"
+    },
+    {
+        id: 5,
+        title: "Cyber Security Intern",
+        company: "SecureNet",
+        type: "Offline",
+        branch: "Information Technology",
+        specialization: "Cyber Security",
+        location: "Bangalore",
+        stipend: "₹18,000/month",
+        duration: "4 Months",
+        skills: ["Linux", "Networking", "Security"],
+        description: "Learn practical cybersecurity concepts and work with security professionals.",
+        link: "#"
+    },
+    {
+        id: 6,
+        title: "Cloud Computing Intern",
+        company: "CloudSphere",
+        type: "Online",
+        branch: "Information Technology",
+        specialization: "Cloud Computing",
+        location: "Remote",
+        stipend: "₹14,000/month",
+        duration: "3 Months",
+        skills: ["AWS", "Docker", "Linux"],
+        description: "Learn cloud infrastructure and deploy applications using modern cloud technologies.",
+        link: "#"
+    }
+];
+
+const FIREBASE_CONFIG = {
+    apiKey: "AIzaSyCFrKocy8aBo5JFU5IuKtD7wcRvzzZnqAQ",
+    authDomain: "internmatch--07.firebaseapp.com",
+    databaseURL: "https://internmatch--07-default-rtdb.firebaseio.com",
+    projectId: "internmatch--07",
+    storageBucket: "internmatch--07.firebasestorage.app",
+    messagingSenderId: "949407159984",
+    appId: "1:949407159984:web:bed66833d63aca1d410d75",
+    measurementId: "G-XXMRD3NLJL"
+};
+
+let firebaseInternshipRef = null;
+
+try {
+    const savedInternships = JSON.parse(localStorage.getItem("internships"));
+    if (Array.isArray(savedInternships)) internships = savedInternships;
+} catch (error) {
+    console.warn("Saved internships could not be loaded.", error);
+}
+
+function isFirebaseConfigured() {
+    return FIREBASE_CONFIG.apiKey !== "PASTE_API_KEY_HERE" &&
+        FIREBASE_CONFIG.projectId !== "PASTE_PROJECT_ID_HERE" &&
+        FIREBASE_CONFIG.databaseURL !== "PASTE_DATABASE_URL_HERE";
+}
+
+function showRegistration() {
+    document.body.classList.add("auth-locked");
+    document.body.classList.remove("founder-login");
+    document.getElementById("authGate").hidden = false;
+    document.getElementById("studentLoginForm").hidden = true;
+    document.getElementById("studentRegistrationForm").hidden = false;
+    document.getElementById("authSubtitle").innerText = "Register first. The founder must approve your account.";
+}
+
+function showStudentLogin() {
+    document.body.classList.add("auth-locked");
+    document.body.classList.remove("founder-login");
+    document.getElementById("authGate").hidden = false;
+    document.getElementById("studentLoginForm").hidden = false;
+    document.getElementById("studentRegistrationForm").hidden = true;
+    document.getElementById("authSubtitle").innerText = "Login with an approved student account.";
+}
+
+function togglePassword(inputId, toggleButton) {
+    const input = document.getElementById(inputId);
+    const showing = input.type === "text";
+    input.type = showing ? "password" : "text";
+    toggleButton.setAttribute("aria-label", showing ? "Show password" : "Hide password");
+    toggleButton.setAttribute("title", showing ? "Show password" : "Hide password");
+}
+
+function openFounderLogin() {
+    document.body.classList.remove("auth-locked");
+    document.body.classList.add("founder-login");
+    document.getElementById("authGate").hidden = true;
+    document.querySelectorAll(".page").forEach(page => page.classList.remove("active"));
+    document.getElementById("admin").classList.add("active");
+    showPage("admin");
+}
+
+function returnToStudentLogin() {
+    setAdminAuthenticated(false);
+    document.body.classList.remove("founder-login");
+    document.body.classList.add("auth-locked");
+    document.getElementById("authGate").hidden = false;
+    showStudentLogin();
+}
+
+function ensureFirebase() {
+    if (!isFirebaseConfigured()) throw new Error("Firebase is not configured yet.");
+    if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
+    return firebase.database();
+}
+
+function getFirebaseErrorMessage(error) {
+    if (error && error.code === "auth/configuration-not-found") {
+        return "Firebase Authentication is not enabled. In Firebase Console, open Authentication, click Get started, enable Email/Password, and add this site's domain under Authorized domains.";
+    }
+    if (error && error.code === "auth/invalid-credential") {
+        return "The Firebase admin email or password is incorrect.";
+    }
+    if (error && error.code === "auth/admin-restricted-operation") {
+        return "Your old admin login is correct, but Firebase Anonymous sign-in is disabled. Enable Authentication > Sign-in method > Anonymous, then refresh the page.";
+    }
+    if (error && error.code === "admin/not-configured") {
+        return `${error.message} Add admins/${error.uid}: true in Realtime Database, then log in again.`;
+    }
+    if (error && (error.code === "PERMISSION_DENIED" || error.code === "database/permission-denied")) {
+        const uid = firebase.auth().currentUser && firebase.auth().currentUser.uid;
+        return uid
+            ? `Firebase denied admin access. Add admins/${uid}: true in Realtime Database and check your database rules.`
+            : "Firebase denied admin access. Add the signed-in user's UID under admins in Realtime Database and check your database rules.";
+    }
+    return error.message;
+}
+
+async function ensureAdminFirebaseSession() {
+    if (!isFirebaseConfigured()) throw new Error("Firebase is not configured yet.");
+    ensureFirebase();
+    if (!firebase.auth().currentUser) await firebase.auth().signInAnonymously();
+
+    const user = firebase.auth().currentUser;
+    const adminSnapshot = await firebase.database().ref(`admins/${user.uid}`).once("value");
+    if (adminSnapshot.val() !== true) {
+        const error = new Error("This account is not configured as a Firebase admin.");
+        error.code = "admin/not-configured";
+        error.uid = user.uid;
+        throw error;
+    }
+}
+
+async function registerStudent() {
+    const message = document.getElementById("registrationMessage");
+    try {
+        if (!isFirebaseConfigured()) throw new Error("The founder must connect Firebase before registrations can be accepted.");
+        ensureFirebase();
+        const credential = await firebase.auth().createUserWithEmailAndPassword(
+            document.getElementById("registerEmail").value.trim(),
+            document.getElementById("registerPassword").value
+        );
+        await firebase.database().ref(`students/${credential.user.uid}`).set({
+            name: document.getElementById("registerName").value.trim(),
+            email: credential.user.email,
+            phone: document.getElementById("registerPhone").value.trim(),
+            branch: document.getElementById("registerBranch").value.trim(),
+            rollNumber: document.getElementById("registerRoll").value.trim(),
+            status: "pending"
+        });
+        await firebase.auth().signOut();
+        message.innerText = "Registration submitted. Wait for founder approval.";
+        showStudentLogin();
+    } catch (error) {
+        message.innerText = getFirebaseErrorMessage(error);
+    }
+}
+
+async function studentLogin() {
+    const message = document.getElementById("studentLoginMessage");
+    try {
+        if (!isFirebaseConfigured()) throw new Error("Firebase is not configured yet.");
+        ensureFirebase();
+        const credential = await firebase.auth().signInWithEmailAndPassword(
+            document.getElementById("studentLoginEmail").value.trim(),
+            document.getElementById("studentLoginPassword").value
+        );
+        const snapshot = await firebase.database().ref(`students/${credential.user.uid}`).once("value");
+        const student = snapshot.val();
+        if (!student || student.status !== "approved") {
+            await firebase.auth().signOut();
+            throw new Error("Your account is waiting for founder approval.");
+        }
+        document.body.classList.remove("auth-locked", "founder-login");
+        document.getElementById("authGate").hidden = true;
+        startSharedInternships();
+    } catch (error) {
+        message.innerText = getFirebaseErrorMessage(error);
+    }
+}
+
+function saveInternships() {
+    localStorage.setItem("internships", JSON.stringify(internships));
+
+    if (firebaseInternshipRef) {
+        firebaseInternshipRef.set(internships).catch(error => {
+            console.error("Shared internships could not be saved.", error);
+            alert("Could not save the internship online. Check your Firebase setup.");
+        });
+    }
+}
+
+function refreshInternshipViews() {
+    displayInternships();
+    displayFeatured();
+    displayAdminInternships();
+    updateHomeStats();
+}
+
+function startSharedInternships() {
+    if (!isFirebaseConfigured() || !firebase.auth().currentUser) return;
+
+    try {
+        ensureFirebase();
+        firebaseInternshipRef = firebase.database().ref("internships");
+        firebaseInternshipRef.on("value", snapshot => {
+            const sharedInternships = snapshot.val();
+
+            if (Array.isArray(sharedInternships)) {
+                internships = sharedInternships;
+                localStorage.setItem("internships", JSON.stringify(internships));
+                refreshInternshipViews();
+            } else {
+                saveInternships();
+            }
+        }, error => {
+            console.error("Shared internships could not be loaded.", error);
+        });
+    } catch (error) {
+        console.error("Firebase could not be started.", error);
+    }
+}
+
+let bookmarks = [];
+
+try {
+    const savedBookmarks = JSON.parse(localStorage.getItem("bookmarks"));
+    if (Array.isArray(savedBookmarks)) {
+        bookmarks = savedBookmarks;
+    }
+} catch (error) {
+    console.warn("Saved bookmarks could not be loaded.", error);
+}
+
+const ADMIN_ID = "admin";
+const ADMIN_PASSKEY = "DTI PROJECT 5";
+let adminAuthenticatedInMemory = false;
+
+function getAdminAuthStorages() {
+    const storages = [];
+
+    try {
+        if (window.sessionStorage) storages.push(window.sessionStorage);
+    } catch (error) {
+        console.warn("Session storage is unavailable.", error);
+    }
+
+    try {
+        if (window.localStorage) storages.push(window.localStorage);
+    } catch (error) {
+        console.warn("Local storage is unavailable.", error);
+    }
+
+    return storages;
+}
+
+function setAdminAuthenticated(authenticated) {
+    adminAuthenticatedInMemory = authenticated;
+
+    getAdminAuthStorages().forEach(storage => {
+        try {
+            if (authenticated) {
+                storage.setItem("adminAuthenticated", "true");
+            } else {
+                storage.removeItem("adminAuthenticated");
+            }
+        } catch (error) {
+            console.warn("Admin login state could not be saved.", error);
+        }
+    });
+}
+
+function getStoredAdminAuthentication() {
+    for (const storage of getAdminAuthStorages()) {
+        try {
+            if (storage.getItem("adminAuthenticated") === "true") {
+                return true;
+            }
+        } catch (error) {
+            console.warn("Admin login state could not be read.", error);
+        }
+    }
+
+    return false;
+}
+
+function isAdminAuthenticated() {
+    return adminAuthenticatedInMemory;
+}
+
+function updateAdminView() {
+    const loginPanel = document.getElementById("adminLoginPanel");
+    const dashboard = document.getElementById("adminDashboard");
+
+    if (!loginPanel || !dashboard) return;
+
+    const authenticated = isAdminAuthenticated();
+    loginPanel.hidden = authenticated;
+    dashboard.hidden = !authenticated;
+
+    if (authenticated) {
+        displayAdminInternships();
+        displayStudentRequests();
+    }
+}
+
+async function displayStudentRequests() {
+    const container = document.getElementById("studentRequestList");
+    if (!container || !isFirebaseConfigured()) return;
+
+    try {
+        await ensureAdminFirebaseSession();
+        const snapshot = await firebase.database().ref("students").once("value");
+        const students = snapshot.val() || {};
+        const pending = Object.entries(students).filter(([, student]) => student.status === "pending");
+        container.innerHTML = pending.length ? pending.map(([uid, student]) => `
+            <div style="padding:14px 0;border-top:1px solid #e5e7eb">
+                <strong>${student.name}</strong>
+                <div class="company">${student.email} - ${student.phone}</div>
+                <div class="company">${student.branch} - Roll No: ${student.rollNumber}</div>
+                <button class="small-primary" style="margin-top:10px" onclick="approveStudent('${uid}')">Accept</button>
+                <button class="danger-btn" style="margin-top:10px" onclick="rejectStudent('${uid}')">Reject</button>
+            </div>
+        `).join("") : "<p class=\"company\">No pending registrations.</p>";
+    } catch (error) {
+        container.innerText = getFirebaseErrorMessage(error);
+    }
+}
+
+async function approveStudent(uid) {
+    const container = document.getElementById("studentRequestList");
+    try {
+        await ensureAdminFirebaseSession();
+        await firebase.database().ref(`students/${uid}/status`).set("approved");
+        await displayStudentRequests();
+    } catch (error) {
+        if (container) container.innerText = getFirebaseErrorMessage(error);
+    }
+}
+
+async function rejectStudent(uid) {
+    if (!confirm("Reject this registration?")) return;
+    const container = document.getElementById("studentRequestList");
+    try {
+        await ensureAdminFirebaseSession();
+        await firebase.database().ref(`students/${uid}`).remove();
+        await displayStudentRequests();
+    } catch (error) {
+        if (container) container.innerText = getFirebaseErrorMessage(error);
+    }
+}
+
+async function adminLogin() {
+    const adminId = document.getElementById("adminLoginId").value.trim();
+    const passkey = document.getElementById("adminPasskey").value;
+    const error = document.getElementById("loginError");
+
+    if (adminId !== ADMIN_ID || passkey !== ADMIN_PASSKEY) {
+        error.innerText = "Incorrect Admin ID or passkey.";
+        return;
+    }
+
+    ensureAdminFirebaseSession().then(() => {
+        setAdminAuthenticated(true);
+        error.innerText = "";
+        document.getElementById("adminPasskey").value = "";
+        document.body.classList.remove("auth-locked");
+        document.body.classList.add("founder-login");
+        document.getElementById("authGate").hidden = true;
+        document.getElementById("admin").classList.add("active");
+        updateAdminView();
+    }).catch(firebaseError => {
+        error.innerText = getFirebaseErrorMessage(firebaseError);
+    });
+}
+
+function adminLogout() {
+    setAdminAuthenticated(false);
+    document.getElementById("adminLoginId").value = "";
+    document.getElementById("adminPasskey").value = "";
+    document.getElementById("loginError").innerText = "";
+    if (firebase.apps.length) firebase.auth().signOut();
+    document.body.classList.remove("founder-login");
+    document.body.classList.add("auth-locked");
+    document.getElementById("authGate").hidden = false;
+    showStudentLogin();
+}
+
+function showPage(pageId) {
+    document.querySelectorAll(".page").forEach(page => page.classList.remove("active"));
+    document.getElementById(pageId).classList.add("active");
+
+    window.scrollTo({ top: 0, behavior: "smooth" });
+
+    if (pageId === "home") {
+        displayInternships();
+        displayFeatured();
+        updateHomeStats();
+    }
+
+    if (pageId === "admin") {
+        updateAdminView();
+    }
+}
+
+function updateHomeStats() {
+    const count = document.getElementById("internshipCount");
+    const onlineCount = document.getElementById("onlineCount");
+
+    if (count) count.innerText = internships.length;
+    if (onlineCount) {
+        onlineCount.innerText = internships.filter(i => i.type === "Online").length;
+    }
+}
+
+function displayFeatured() {
+    const container = document.getElementById("featuredContainer");
+    container.innerHTML = "";
+
+    internships.slice(0, 5).forEach(internship => {
+        const card = document.createElement("div");
+        card.className = "feature-card";
+
+        card.innerHTML = `
+            <div style="font-size:30px">🚀</div>
+            <h3>${internship.title}</h3>
+            <div class="company">${internship.company}</div>
+            <div class="feature-info">📍 ${internship.location}</div>
+            <div class="feature-info">💰 ${internship.stipend}</div>
+            <div class="feature-info">${internship.type === "Online" ? "🌐 Online" : "🏢 Offline"}</div>
+            <button onclick="showDetails(${internship.id})">View Internship</button>
+        `;
+
+        container.appendChild(card);
+    });
+}
+
+function displayInternships() {
+    const container = document.getElementById("internshipContainer");
+    const search = document.getElementById("searchInput").value.toLowerCase();
+
+    const filtered = internships.filter(i =>
+        i.title.toLowerCase().includes(search) ||
+        i.company.toLowerCase().includes(search) ||
+        i.specialization.toLowerCase().includes(search) ||
+        i.skills.join(" ").toLowerCase().includes(search)
+    );
+
+    container.innerHTML = "";
+    filtered.forEach(internship => {
+        container.innerHTML += createCard(internship);
+    });
+}
+
+function createCard(internship) {
+    return `
+        <div class="card">
+            <div class="card-top">
+                <div class="company-logo">💼</div>
+                <button class="bookmark" onclick="bookmark(${internship.id})" title="Save internship" aria-label="Save ${internship.title}">
+                    ${bookmarks.includes(internship.id) ? "♥" : "♡"}
+                </button>
+            </div>
+
+            <h3>${internship.title}</h3>
+            <div class="company">${internship.company}</div>
+
+            <div class="tags">
+                <span class="tag">${internship.specialization}</span>
+                <span class="tag">${internship.type}</span>
+            </div>
+
+            <div class="details">
+                <div>📍 ${internship.location}</div>
+                <div>💰 ${internship.stipend}</div>
+                <div>⏱️ ${internship.duration}</div>
+            </div>
+
+            <div class="card-actions">
+                <button class="secondary-btn" onclick="showDetails(${internship.id})">Details</button>
+                <button class="small-primary" onclick="apply(${internship.id})">Apply</button>
+            </div>
+        </div>
+    `;
+}
+
+let selectedType = "Online";
+
+function selectType(type) {
+    selectedType = type;
+
+    document.getElementById("onlineChoice").classList.remove("selected");
+    document.getElementById("offlineChoice").classList.remove("selected");
+
+    if (type === "Online") {
+        document.getElementById("onlineChoice").classList.add("selected");
+    } else {
+        document.getElementById("offlineChoice").classList.add("selected");
+    }
+}
+
+function findMatches() {
+    const branch = document.getElementById("branch").value;
+    const specialization = document.getElementById("specialization").value;
+    const skills = document.getElementById("skills").value.toLowerCase();
+    const location = document.getElementById("location").value.toLowerCase();
+    const graduation = document.getElementById("graduation").value;
+
+    let results = internships.map(internship => {
+        let score = 0;
+
+        if (internship.type === selectedType) score += 35;
+        if (branch && internship.branch === branch) score += 25;
+        if (specialization && internship.specialization === specialization) score += 30;
+        if (location && internship.location.toLowerCase().includes(location)) score += 10;
+        if (graduation) score += 5;
+
+        if (skills) {
+            const userSkills = skills.split(",").map(s => s.trim());
+            userSkills.forEach(skill => {
+                if (internship.skills.join(" ").toLowerCase().includes(skill)) {
+                    score += 5;
+                }
+            });
+        }
+
+        return {
+            ...internship,
+            score: Math.min(score, 100)
+        };
+    });
+
+    results.sort((a, b) => b.score - a.score);
+
+    const container = document.getElementById("resultsContainer");
+    container.innerHTML = "";
+
+    results.forEach(internship => {
+        container.innerHTML += `
+            <div class="card">
+                <div class="card-top">
+                    <div class="company-logo">🤖</div>
+                    <strong style="color:#16a34a">${internship.score}% Match</strong>
+                </div>
+
+                <h3>${internship.title}</h3>
+                <div class="company">${internship.company}</div>
+
+                <div class="tags">
+                    <span class="tag">${internship.type}</span>
+                    <span class="tag">${internship.specialization}</span>
+                </div>
+
+                <div class="details">
+                    <div>📍 ${internship.location}</div>
+                    <div>💰 ${internship.stipend}</div>
+                    <div>⏱️ ${internship.duration}</div>
+                </div>
+
+                <div class="card-actions">
+                    <button class="secondary-btn" onclick="showDetails(${internship.id})">Details</button>
+                    <button class="small-primary" onclick="apply(${internship.id})">Apply</button>
+                </div>
+            </div>
+        `;
+    });
+
+    document.getElementById("resultMessage").innerText = `We found ${results.length} internships based on your preferences.`;
+    showPage("results");
+}
+
+function showDetails(id) {
+    const internship = internships.find(i => i.id === id);
+    const modal = document.getElementById("detailsModal");
+    const body = document.getElementById("modalBody");
+
+    body.innerHTML = `
+        <div style="font-size:45px">💼</div>
+        <h2 style="margin-top:15px">${internship.title}</h2>
+        <p style="color:#64748b;margin:8px 0 25px">${internship.company}</p>
+
+        <div class="tags">
+            <span class="tag">${internship.type}</span>
+            <span class="tag">${internship.specialization}</span>
+            <span class="tag">${internship.branch}</span>
+        </div>
+
+        <h3 style="margin-top:25px">Internship Details</h3>
+
+        <div class="details" style="margin-top:15px">
+            <div>📍 Location: <strong>${internship.location}</strong></div>
+            <div>💰 Stipend: <strong>${internship.stipend}</strong></div>
+            <div>⏱️ Duration: <strong>${internship.duration}</strong></div>
+            <div>🧠 Skills: <strong>${internship.skills.join(", ")}</strong></div>
+        </div>
+
+        <h3 style="margin-top:25px">About the Internship</h3>
+        <p style="color:#64748b;line-height:1.7;margin-top:10px">${internship.description}</p>
+
+        <button class="primary-btn" style="width:100%;margin-top:25px" onclick="apply(${internship.id})">
+            Apply Now →
+        </button>
+    `;
+
+    modal.classList.add("show");
+}
+
+function closeModal() {
+    document.getElementById("detailsModal").classList.remove("show");
+}
+
+function apply(id) {
+    const internship = internships.find(i => i.id === id);
+
+    if (internship.link && internship.link !== "#") {
+        window.open(internship.link, "_blank");
+    } else {
+        alert("Application link will be added by the administrator.");
+    }
+}
+
+function bookmark(id) {
+    if (bookmarks.includes(id)) {
+        bookmarks = bookmarks.filter(bookmarkId => bookmarkId !== id);
+    } else {
+        bookmarks.push(id);
+    }
+
+    localStorage.setItem("bookmarks", JSON.stringify(bookmarks));
+    displayInternships();
+}
+
+function addInternship() {
+    const title = document.getElementById("adminTitle").value;
+    const company = document.getElementById("adminCompany").value;
+    const type = document.getElementById("adminType").value;
+    const branch = document.getElementById("adminBranch").value;
+    const specialization = document.getElementById("adminSpecialization").value;
+    const location = document.getElementById("adminLocation").value;
+    const stipend = document.getElementById("adminStipend").value;
+    const duration = document.getElementById("adminDuration").value;
+    const skills = document.getElementById("adminSkills").value.split(",").map(s => s.trim());
+    const link = document.getElementById("adminLink").value;
+
+    if (!title || !company || !specialization) {
+        alert("Please enter the internship title, company and specialization.");
+        return;
+    }
+
+    internships.unshift({
+        id: Date.now(),
+        title,
+        company,
+        type,
+        branch,
+        specialization,
+        location: location || "Not specified",
+        stipend: stipend || "Not specified",
+        duration: duration || "Not specified",
+        skills,
+        description: "New internship added by the InternMatch development team.",
+        link: link || "#"
+    });
+
+    saveInternships();
+    alert(isFirebaseConfigured()
+        ? "Internship published and shared with other devices."
+        : "Internship saved on this device only. Connect Firebase to share it with other devices.");
+
+    document.querySelectorAll(".admin-input").forEach(input => input.value = "");
+
+    refreshInternshipViews();
+    displayAdminInternships();
+}
+
+function displayAdminInternships() {
+    const container = document.getElementById("adminInternshipList");
+    const count = document.getElementById("adminInternshipCount");
+
+    if (!container) return;
+
+    count.innerText = `${internships.length} total`;
+    container.innerHTML = internships.map(internship => `
+        <div class="card" style="margin-top:15px">
+            <div class="card-top">
+                <div>
+                    <h3 style="margin:0 0 6px">${internship.title}</h3>
+                    <div class="company">${internship.company}</div>
+                </div>
+                <span class="tag">${internship.type}</span>
+            </div>
+            <div class="tags">
+                <span class="tag">${internship.branch}</span>
+                <span class="tag">${internship.specialization}</span>
+            </div>
+            <div class="details">
+                <div>📍 ${internship.location}</div>
+                <div>💰 ${internship.stipend}</div>
+                <div>⏱️ ${internship.duration}</div>
+                <div>🧠 ${internship.skills.join(", ")}</div>
+            </div>
+            <p class="company" style="margin-top:15px">${internship.description}</p>
+            <div class="card-actions">
+                <button class="secondary-btn" onclick="showDetails(${internship.id})">View Details</button>
+                <button class="danger-btn" onclick="deleteInternship(${internship.id})" aria-label="Delete ${internship.title}">
+                    Delete
+                </button>
+            </div>
+        </div>
+    `).join("");
+}
+
+function deleteInternship(id) {
+    const internship = internships.find(item => item.id === id);
+
+    if (!internship || !confirm(`Delete "${internship.title}"?`)) return;
+
+    internships = internships.filter(item => item.id !== id);
+    bookmarks = bookmarks.filter(bookmarkId => bookmarkId !== id);
+
+    saveInternships();
+    localStorage.setItem("bookmarks", JSON.stringify(bookmarks));
+
+    refreshInternshipViews();
+}
+
+setInterval(() => {
+    const container = document.getElementById("featuredContainer");
+
+    if (container) {
+        container.scrollBy({ left: 330, behavior: "smooth" });
+
+        if (container.scrollLeft + container.clientWidth >= container.scrollWidth - 20) {
+            container.scrollTo({ left: 0, behavior: "smooth" });
+        }
+    }
+}, 3500);
+
+displayFeatured();
+displayInternships();
+displayAdminInternships();
+updateHomeStats();
+</script>
+
+</body>
+</html>
