@@ -587,6 +587,7 @@ footer strong {
             <label class="password-field">Password<input id="studentLoginPassword" type="password" required><button class="password-toggle" type="button" aria-label="Show password" title="Show password" onclick="togglePassword('studentLoginPassword', this)">&#128065;</button></label>
             <button class="primary-btn" type="submit" style="width:100%;margin-top:20px">Student Login</button>
             <p class="auth-message" id="studentLoginMessage"></p>
+            <button class="auth-link" type="button" onclick="resetStudentPassword()">Forgot password?</button>
             <button class="auth-link" type="button" onclick="showRegistration()">New student? Register here</button>
             <br><button class="auth-link" type="button" onclick="openFounderLogin()">Founder/Admin login</button>
         </form>
@@ -1169,13 +1170,35 @@ async function studentLogin() {
             account.email === document.getElementById("studentLoginEmail").value.trim().toLowerCase() &&
             account.password === document.getElementById("studentLoginPassword").value
         );
-        message.innerText = student && student.status === "approved"
-            ? "Local login approved. Firebase access is unavailable for shared internships."
-            : getFirebaseErrorMessage(error);
+        if (student && student.status === "approved") {
+            message.innerText = "Local login approved. Firebase access is unavailable for shared internships.";
+        } else if (error && ["auth/invalid-credential", "auth/wrong-password", "auth/user-not-found"].includes(error.code)) {
+            message.innerText = "This account is approved, but the student email or password does not match. Use the exact Firebase login details used during registration.";
+        } else {
+            message.innerText = getFirebaseErrorMessage(error);
+        }
         if (student && student.status === "approved") {
             document.body.classList.remove("auth-locked", "founder-login");
             document.getElementById("authGate").hidden = true;
         }
+    }
+}
+
+async function resetStudentPassword() {
+    const email = document.getElementById("studentLoginEmail").value.trim();
+    const message = document.getElementById("studentLoginMessage");
+    if (!email) {
+        message.innerText = "Enter your student email first.";
+        return;
+    }
+    try {
+        ensureFirebase();
+        await firebase.auth().sendPasswordResetEmail(email);
+        message.innerText = "Password reset email sent. Check your inbox, then log in again.";
+    } catch (error) {
+        message.innerText = error.code === "auth/user-not-found"
+            ? "No Firebase student account was found for this email."
+            : getFirebaseErrorMessage(error);
     }
 }
 
