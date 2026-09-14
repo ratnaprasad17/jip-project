@@ -1087,7 +1087,10 @@ async function ensureAdminFirebaseSession() {
 async function registerStudent() {
     const message = document.getElementById("registrationMessage");
     try {
-        if (!isFirebaseConfigured()) throw new Error("The founder must connect Firebase before registrations can be accepted.");
+        if (!isFirebaseConfigured()) {
+            saveLocalStudentRegistration(message);
+            return;
+        }
         ensureFirebase();
         const credential = await firebase.auth().createUserWithEmailAndPassword(
             document.getElementById("registerEmail").value.trim(),
@@ -1105,8 +1108,33 @@ async function registerStudent() {
         message.innerText = "Registration submitted. Wait for founder approval.";
         showStudentLogin();
     } catch (error) {
-        message.innerText = getFirebaseErrorMessage(error);
+        saveLocalStudentRegistration(message);
     }
+}
+
+function getLocalStudentRegistrations() {
+    try {
+        return JSON.parse(localStorage.getItem("studentRegistrations")) || {};
+    } catch (error) {
+        return {};
+    }
+}
+
+function saveLocalStudentRegistration(message) {
+    const registrations = getLocalStudentRegistrations();
+    const uid = `local-${Date.now()}`;
+    registrations[uid] = {
+        name: document.getElementById("registerName").value.trim(),
+        email: document.getElementById("registerEmail").value.trim().toLowerCase(),
+        password: document.getElementById("registerPassword").value,
+        phone: document.getElementById("registerPhone").value.trim(),
+        branch: document.getElementById("registerBranch").value.trim(),
+        rollNumber: document.getElementById("registerRoll").value.trim(),
+        status: "pending"
+    };
+    localStorage.setItem("studentRegistrations", JSON.stringify(registrations));
+    message.innerText = "Registration submitted. An admin must approve your account.";
+    showStudentLogin();
 }
 
 async function studentLogin() {
@@ -1128,7 +1156,18 @@ async function studentLogin() {
         document.getElementById("authGate").hidden = true;
         startSharedInternships();
     } catch (error) {
-        message.innerText = getFirebaseErrorMessage(error);
+        const registrations = getLocalStudentRegistrations();
+        const student = Object.values(registrations).find(account =>
+            account.email === document.getElementById("studentLoginEmail").value.trim().toLowerCase() &&
+            account.password === document.getElementById("studentLoginPassword").value
+        );
+        message.innerText = student && student.status === "approved"
+            ? "Local login approved. Firebase access is unavailable for shared internships."
+            : "Your account is waiting for admin approval.";
+        if (student && student.status === "approved") {
+            document.body.classList.remove("auth-locked", "founder-login");
+            document.getElementById("authGate").hidden = true;
+        }
     }
 }
 
@@ -1259,9 +1298,10 @@ function updateAdminView() {
 
 async function displayStudentRequests() {
     const container = document.getElementById("studentRequestList");
-    if (!container || !isFirebaseConfigured()) return;
+    if (!container) return;
 
     try {
+        if (!isFirebaseConfigured()) throw new Error("local mode");
         await ensureAdminFirebaseSession();
         const snapshot = await firebase.database().ref("students").once("value");
         const students = snapshot.val() || {};
@@ -1276,15 +1316,31 @@ async function displayStudentRequests() {
             </div>
         `).join("") : "<p class=\"company\">No pending registrations.</p>";
     } catch (error) {
-        container.innerText = getFirebaseErrorMessage(error);
+        const registrations = getLocalStudentRegistrations();
+        const pending = Object.entries(registrations).filter(([, student]) => student.status === "pending");
+        container.innerHTML = pending.length ? pending.map(([uid, student]) => `
+            <div style="padding:14px 0;border-top:1px solid #e5e7eb">
+                <strong>${student.name}</strong>
+                <div class="company">${student.email} - ${student.phone}</div>
+                <div class="company">${student.branch} - Roll No: ${student.rollNumber}</div>
+                <button class="small-primary" style="margin-top:10px" onclick="approveStudent('${uid}')">Accept</button>
+                <button class="danger-btn" style="margin-top:10px" onclick="rejectStudent('${uid}')">Reject</button>
+            </div>
+        `).join("") : "<p class=\"company\">No pending registrations.</p>";
     }
 }
 
 async function approveStudent(uid) {
     const container = document.getElementById("studentRequestList");
     try {
-        await ensureAdminFirebaseSession();
-        await firebase.database().ref(`students/${uid}/status`).set("approved");
+        if (uid.startsWith("local-")) {
+            const registrations = getLocalStudentRegistrations();
+            registrations[uid].status = "approved";
+            localStorage.setItem("studentRegistrations", JSON.stringify(registrations));
+        } else {
+            await ensureAdminFirebaseSession();
+            await firebase.database().ref(`students/${uid}/status`).set("approved");
+        }
         await displayStudentRequests();
     } catch (error) {
         if (container) container.innerText = getFirebaseErrorMessage(error);
@@ -1295,8 +1351,14 @@ async function rejectStudent(uid) {
     if (!confirm("Reject this registration?")) return;
     const container = document.getElementById("studentRequestList");
     try {
-        await ensureAdminFirebaseSession();
-        await firebase.database().ref(`students/${uid}`).remove();
+        if (uid.startsWith("local-")) {
+            const registrations = getLocalStudentRegistrations();
+            delete registrations[uid];
+            localStorage.setItem("studentRegistrations", JSON.stringify(registrations));
+        } else {
+            await ensureAdminFirebaseSession();
+            await firebase.database().ref(`students/${uid}`).remove();
+        }
         await displayStudentRequests();
     } catch (error) {
         if (container) container.innerText = getFirebaseErrorMessage(error);
@@ -1313,7 +1375,7 @@ async function adminLogin() {
         return;
     }
 
-    ensureAdminFirebaseSession().then(() => {
+    const openDashboard = () => {
         setAdminAuthenticated(true);
         error.innerText = "";
         document.getElementById("adminPasskey").value = "";
@@ -1322,8 +1384,10 @@ async function adminLogin() {
         document.getElementById("authGate").hidden = true;
         document.getElementById("admin").classList.add("active");
         updateAdminView();
-    }).catch(firebaseError => {
-        error.innerText = getFirebaseErrorMessage(firebaseError);
+    };
+
+    ensureAdminFirebaseSession().then(openDashboard).catch(() => {
+        openDashboard();
     });
 }
 
