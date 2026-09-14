@@ -1115,7 +1115,11 @@ async function registerStudent() {
         message.innerText = "Registration submitted. Wait for founder approval.";
         showStudentLogin();
     } catch (error) {
-        saveLocalStudentRegistration(message);
+        if (isFirebaseConfigured()) {
+            message.innerText = getFirebaseErrorMessage(error);
+        } else {
+            saveLocalStudentRegistration(message);
+        }
     }
 }
 
@@ -1165,6 +1169,12 @@ async function studentLogin() {
         document.getElementById("authGate").hidden = true;
         startSharedInternships();
     } catch (error) {
+        if (isFirebaseConfigured()) {
+            message.innerText = error && ["auth/invalid-credential", "auth/wrong-password", "auth/user-not-found"].includes(error.code)
+                ? "Firebase could not sign you in. Check the student email and password, or use Forgot password? to set a new password."
+                : getFirebaseErrorMessage(error);
+            return;
+        }
         const registrations = getLocalStudentRegistrations();
         const student = Object.values(registrations).find(account =>
             account.email === document.getElementById("studentLoginEmail").value.trim().toLowerCase() &&
@@ -1172,11 +1182,7 @@ async function studentLogin() {
         );
         if (student && student.status === "approved") {
             message.innerText = "Local login approved. Firebase access is unavailable for shared internships.";
-        } else if (error && ["auth/invalid-credential", "auth/wrong-password", "auth/user-not-found"].includes(error.code)) {
-            message.innerText = "This account is approved, but the student email or password does not match. Use the exact Firebase login details used during registration.";
-        } else {
-            message.innerText = getFirebaseErrorMessage(error);
-        }
+        } else message.innerText = "Unable to log in. Check your email and password, then try again.";
         if (student && student.status === "approved") {
             document.body.classList.remove("auth-locked", "founder-login");
             document.getElementById("authGate").hidden = true;
