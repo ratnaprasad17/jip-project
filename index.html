@@ -875,7 +875,7 @@ footer strong {
 
         <div class="section-title" style="margin-top:35px">
             <h3>Student Registrations</h3>
-            <span>Founder approval required</span>
+            <span>Admin approval required</span>
         </div>
         <div id="studentRequestList"></div>
     </div>
@@ -1072,14 +1072,8 @@ function getFirebaseErrorMessage(error) {
     if (error && error.code === "auth/admin-restricted-operation") {
         return "Your old admin login is correct, but Firebase Anonymous sign-in is disabled. Enable Authentication > Sign-in method > Anonymous, then refresh the page.";
     }
-    if (error && error.code === "admin/not-configured") {
-        return `${error.message} Add admins/${error.uid}: true in Realtime Database, then log in again.`;
-    }
     if (error && (error.code === "PERMISSION_DENIED" || error.code === "database/permission-denied")) {
-        const uid = firebase.auth().currentUser && firebase.auth().currentUser.uid;
-        return uid
-            ? `Firebase denied admin access. Add admins/${uid}: true in Realtime Database and check your database rules.`
-            : "Firebase denied admin access. Add the signed-in user's UID under admins in Realtime Database and check your database rules.";
+        return "Firebase denied access. Update the Realtime Database rules so signed-in admins can read and update student registrations.";
     }
     return error.message;
 }
@@ -1088,15 +1082,6 @@ async function ensureAdminFirebaseSession() {
     if (!isFirebaseConfigured()) throw new Error("Firebase is not configured yet.");
     ensureFirebase();
     if (!firebase.auth().currentUser) await firebase.auth().signInAnonymously();
-
-    const user = firebase.auth().currentUser;
-    const adminSnapshot = await firebase.database().ref(`admins/${user.uid}`).once("value");
-    if (adminSnapshot.val() !== true) {
-        const error = new Error("This account is not configured as a Firebase admin.");
-        error.code = "admin/not-configured";
-        error.uid = user.uid;
-        throw error;
-    }
 }
 
 async function registerStudent() {
