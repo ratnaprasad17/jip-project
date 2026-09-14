@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>InternMatch - Find Your Internship</title>
+<link rel="icon" type="image/jpeg" href="vasavi-logo.jpg">
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="auth-locked">
+
+<!-- ================= LOADING OVERLAY ================= -->
+<div id="loadingOverlay" class="loading-overlay">
+    <div class="loader-content">
+        <img src="vasavi-logo.jpg" alt="College Logo" class="loader-logo-img">
+        <div class="loader-logo">Intern<span>Match</span></div>
+        <div class="loader-spinner"></div>
+        <p class="loader-text" id="loaderText">Logging you in...</p>
+        <div class="loader-dots">
+            <span></span><span></span><span></span>
+        </div>
+    </div>
+</div>
+
+<!-- ================= AUTH GATE ================= -->
+<section id="authGate">
+    <div class="auth-card">
+        <img src="vasavi-logo.jpg" alt="Sri Vasavi Engineering College" class="auth-logo-img">
+        <h1>InternMatch</h1>
+        <p id="authSubtitle">Login with an approved student account.</p>
+
+        <form id="studentLoginForm" onsubmit="event.preventDefault(); studentLogin();">
+            <label>Email
+                <input id="studentLoginEmail" type="email" required>
+            </label>
+            <label class="password-field">Password
+                <input id="studentLoginPassword" type="password" required>
+                <button class="password-toggle" type="button" aria-label="Show password" title="Show password"
+                        onclick="togglePassword('studentLoginPassword', this)">&#128065;</button>
+            </label>
+            <button class="primary-btn full-width" type="submit">Student Login</button>
+            <p class="auth-message" id="studentLoginMessage"></p>
+            <button class="auth-link" type="button" onclick="resetStudentPassword()">Forgot password?</button>
+            <button class="auth-link" type="button" onclick="showRegistration()">New student? Register here</button>
+            <br>
+            <button class="auth-link" type="button" onclick="openFounderLogin()">Founder/Admin login</button>
+        </form>
+
+        <form id="studentRegistrationForm" hidden onsubmit="event.preventDefault(); registerStudent();">
+            <label>Full Name<input id="registerName" required></label>
+            <label>Email<input id="registerEmail" type="email" required></label>
+            <label>Phone Number<input id="registerPhone" required></label>
+            <label>College / Branch<input id="registerBranch" required></label>
+            <label>Roll Number<input id="registerRoll" required></label>
+            <label class="password-field">Password
+                <input id="registerPassword" type="password" minlength="6" required>
+                <button class="password-toggle" type="button" aria-label="Show password" title="Show password"
+                        onclick="togglePassword('registerPassword', this)">&#128065;</button>
+            </label>
+            <button class="primary-btn full-width" type="submit">Submit Registration</button>
+            <p class="auth-message" id="registrationMessage"></p>
+            <button class="auth-link" type="button" onclick="showStudentLogin()">Back to student login</button>
+        </form>
+    </div>
+</section>
+
+<!-- ================= NAVBAR ================= -->
+<nav class="navbar">
+    <div class="logo">
+        <img src="vasavi-logo.jpg" alt="Sri Vasavi Engineering College" class="nav-logo-img">
+        Intern<span>Match</span>
+    </div>
+    <div class="nav-buttons">
+        <button class="nav-btn" onclick="showPage('home')">Home</button>
+        <button class="nav-btn" onclick="showPage('preferences')">Find Internship</button>
+        <button class="nav-btn" onclick="showPage('profile')">My Profile</button>
+        <button class="nav-btn logout-nav-btn" onclick="studentLogout()">Logout</button>
+    </div>
+</nav>
+
+<!-- ================= HOME ================= -->
+<section id="home" class="page active">
+    <div class="hero">
+        <div class="hero-content">
+            <div class="badge">🎓 Built for Students & Graduates</div>
+            <h1>Find Your <span class="gradient-text">Perfect Internship</span> 🚀</h1>
+            <p>Discover online and offline internships matched with your education, skills, branch and career goals.</p>
+            <button class="primary-btn" onclick="showPage('preferences')">Find My Internship →</button>
+
+            <div class="hero-stats" aria-label="Internship highlights">
+                <div class="hero-stat"><strong id="internshipCount">0</strong><span>current opportunities</span></div>
+                <div class="hero-stat"><strong id="onlineCount">0</strong><span>online options</span></div>
+                <div class="hero-stat"><strong>Daily</strong><span>developer updates</span></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">
+            <h2>🔥 Featured Internships</h2>
+            <span>Updated daily by our team</span>
+        </div>
+        <div class="featured-wrapper">
+            <div class="featured" id="featuredContainer"></div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">
+            <h2>⭐ Latest Internships</h2>
+            <span>Compare roles, places and stipends</span>
+        </div>
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="Search internships, skills, companies..."
+                   oninput="displayInternships()">
+        </div>
+        <div class="internship-grid" id="internshipContainer"></div>
+    </div>
+</section>
+
+<!-- ================= STUDENT PROFILE ================= -->
+<section id="profile" class="page">
+    <div class="profile-container">
+        <div class="profile-heading">
+            <div class="profile-avatar" id="profileAvatar">S</div>
+            <div>
+                <p class="profile-kicker">Student profile</p>
+                <h2 id="profileName">Student</h2>
+                <p id="profileEmail" class="company"></p>
+            </div>
+        </div>
+        <div class="profile-details" id="profileDetails"></div>
+        <button class="secondary-btn profile-logout" onclick="studentLogout()">Logout</button>
+    </div>
+</section>
+
+<!-- ================= PREFERENCES ================= -->
+<section id="preferences" class="page">
+    <div class="form-container">
+        <h2>🎯 Tell Us About Yourself</h2>
+        <p class="form-subtitle">We'll find internships that match your profile.</p>
+
+        <div class="form-group">
+            <label>What type of internship do you want?</label>
+            <div class="choice-row">
+                <div class="choice selected" id="onlineChoice" onclick="selectType('Online')">🌐 Online</div>
+                <div class="choice" id="offlineChoice" onclick="selectType('Offline')">🏢 Offline</div>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Your Branch</label>
+            <select id="branch">
+                <option value="">Select Branch</option>
+                <option>Computer Science</option>
+                <option>Artificial Intelligence</option>
+                <option>Information Technology</option>
+                <option>Electronics & Communication</option>
+                <option>Electrical Engineering</option>
+                <option>Mechanical Engineering</option>
+                <option>Civil Engineering</option>
+                <option>Business / Management</option>
+                <option>Other</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Specialization / Interest</label>
+            <select id="specialization">
+                <option value="">Select Specialization</option>
+                <option>Artificial Intelligence</option>
+                <option>Machine Learning</option>
+                <option>Data Science</option>
+                <option>Web Development</option>
+                <option>App Development</option>
+                <option>Cyber Security</option>
+                <option>Cloud Computing</option>
+                <option>Blockchain</option>
+                <option>Electronics</option>
+                <option>Robotics</option>
+                <option>Marketing</option>
+                <option>Finance</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Your Skills</label>
+            <input type="text" id="skills" placeholder="Example: Python, SQL, Machine Learning">
+        </div>
+
+        <div class="form-group">
+            <label>Preferred Location</label>
+            <input type="text" id="location" placeholder="Example: Hyderabad, Bangalore, Chennai">
+        </div>
+
+        <div class="form-group">
+            <label>Graduation Year</label>
+            <select id="graduation">
+                <option>2026</option>
+                <option>2027</option>
+                <option>2028</option>
+                <option>2029</option>
+            </select>
+        </div>
+
+        <button class="primary-btn full-width" onclick="findMatches()">🔍 Find My Internships</button>
+    </div>
+</section>
+
+<!-- ================= RESULTS ================= -->
+<section id="results" class="page">
+    <div class="section">
+        <button class="secondary-btn mb-20" onclick="showPage('preferences')">← Change Preferences</button>
+        <h1>🎯 Recommended For You</h1>
+        <p id="resultMessage" class="result-message"></p>
+        <div class="internship-grid" id="resultsContainer"></div>
+    </div>
+</section>
+
+<!-- ================= ADMIN ================= -->
+<section id="admin" class="page">
+    <div class="admin-login" id="adminLoginPanel">
+        <h2>Admin Login</h2>
+        <p>Sign in to manage internship listings.</p>
+
+        <form onsubmit="event.preventDefault(); adminLogin();">
+            <div class="form-group">
+                <label for="adminLoginId">Admin ID</label>
+                <input class="admin-input" id="adminLoginId" autocomplete="username" required>
+            </div>
+
+            <div class="form-group">
+                <label for="adminPasskey">Passkey</label>
+                <div class="password-field">
+                    <input class="admin-input" id="adminPasskey" type="password"
+                           autocomplete="current-password" required>
+                    <button class="password-toggle" type="button" aria-label="Show passkey"
+                            title="Show passkey" onclick="togglePassword('adminPasskey', this)">&#128065;</button>
+                </div>
+            </div>
+
+            <button class="primary-btn full-width" type="submit">Login</button>
+            <div class="login-error" id="loginError" role="alert"></div>
+            <button class="auth-link" type="button" onclick="returnToStudentLogin()">Back to Student Login</button>
+        </form>
+    </div>
+
+    <div class="admin-container" id="adminDashboard" hidden>
+        <div class="admin-header">
+            <h2>👨‍💻 Developer / Admin Dashboard</h2>
+            <button class="logout-btn" onclick="adminLogout()">Logout</button>
+        </div>
+
+        <p class="admin-note">Add new internships here. In the final application, this section should connect to a database.</p>
+        <p class="admin-warning">Before Firebase is connected, changes are saved only on this device and will not appear on other phones or computers.</p>
+
+        <div class="admin-grid">
+            <div><label class="admin-label">Internship Title</label><input class="admin-input" id="adminTitle" placeholder="Machine Learning Intern"></div>
+            <div><label class="admin-label">Company</label><input class="admin-input" id="adminCompany" placeholder="Company Name"></div>
+            <div>
+                <label class="admin-label">Type</label>
+                <select class="admin-input" id="adminType"><option>Online</option><option>Offline</option></select>
+            </div>
+            <div>
+                <label class="admin-label">Branch</label>
+                <select class="admin-input" id="adminBranch">
+                    <option>Computer Science</option>
+                    <option>Artificial Intelligence</option>
+                    <option>Information Technology</option>
+                    <option>Electronics & Communication</option>
+                    <option>Mechanical Engineering</option>
+                    <option>Civil Engineering</option>
+                </select>
+            </div>
+            <div><label class="admin-label">Specialization</label><input class="admin-input" id="adminSpecialization" placeholder="Machine Learning"></div>
+            <div><label class="admin-label">Location</label><input class="admin-input" id="adminLocation" placeholder="Hyderabad"></div>
+            <div><label class="admin-label">Stipend</label><input class="admin-input" id="adminStipend" placeholder="₹15,000/month"></div>
+            <div><label class="admin-label">Duration</label><input class="admin-input" id="adminDuration" placeholder="3 Months"></div>
+            <div class="full"><label class="admin-label">Skills</label><input class="admin-input" id="adminSkills" placeholder="Python, SQL, Machine Learning"></div>
+            <div class="full"><label class="admin-label">Application Link</label><input class="admin-input" id="adminLink" placeholder="https://example.com/apply"></div>
+        </div>
+
+        <button class="primary-btn mt-20" onclick="addInternship()">+ Publish Internship</button>
+
+        <div class="section-title mt-35">
+            <h3>Manage Internships</h3>
+            <span id="adminInternshipCount"></span>
+        </div>
+        <div id="adminInternshipList"></div>
+
+        <div class="section-title mt-35">
+            <h3>Student Registrations</h3>
+            <span>Admin approval required</span>
+        </div>
+        <div id="studentRequestList"></div>
+
+        <div class="section-title mt-35">
+            <h3>Approved Users</h3>
+            <span id="approvedStudentCount"></span>
+        </div>
+        <div id="approvedStudentList"></div>
+    </div>
+</section>
+
+<!-- ================= MODAL ================= -->
+<div class="modal" id="detailsModal">
+    <div class="modal-content">
+        <button class="close" onclick="closeModal()">×</button>
+        <div id="modalBody"></div>
+    </div>
+</div>
+
+<!-- ================= FOOTER ================= -->
+<footer>
+    <img src="vasavi-logo.jpg" alt="Sri Vasavi Engineering College" class="footer-logo-img">
+    <br>
+    <strong>InternMatch</strong>
+    <br><br>
+    Helping students and graduates find better internships.
+    <br><br>
+    © 2026 InternMatch — Student Project
+</footer>
+
+<!-- ================= FIREBASE SDK ================= -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="script.js"></script>
+
+</body>
+</html>
