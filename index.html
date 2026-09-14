@@ -878,6 +878,12 @@ footer strong {
             <span>Admin approval required</span>
         </div>
         <div id="studentRequestList"></div>
+
+        <div class="section-title" style="margin-top:35px">
+            <h3>Approved Users</h3>
+            <span id="approvedStudentCount"></span>
+        </div>
+        <div id="approvedStudentList"></div>
     </div>
 </section>
 
@@ -1142,6 +1148,7 @@ async function studentLogin() {
     try {
         if (!isFirebaseConfigured()) throw new Error("Firebase is not configured yet.");
         ensureFirebase();
+        if (firebase.auth().currentUser) await firebase.auth().signOut();
         const credential = await firebase.auth().signInWithEmailAndPassword(
             document.getElementById("studentLoginEmail").value.trim(),
             document.getElementById("studentLoginPassword").value
@@ -1164,7 +1171,7 @@ async function studentLogin() {
         );
         message.innerText = student && student.status === "approved"
             ? "Local login approved. Firebase access is unavailable for shared internships."
-            : "Unable to log in. Check your email and password, then try again.";
+            : getFirebaseErrorMessage(error);
         if (student && student.status === "approved") {
             document.body.classList.remove("auth-locked", "founder-login");
             document.getElementById("authGate").hidden = true;
@@ -1294,7 +1301,36 @@ function updateAdminView() {
     if (authenticated) {
         displayAdminInternships();
         displayStudentRequests();
+        displayApprovedStudents();
     }
+}
+
+async function displayApprovedStudents() {
+    const container = document.getElementById("approvedStudentList");
+    const count = document.getElementById("approvedStudentCount");
+    if (!container || !count) return;
+
+    let students = {};
+    try {
+        if (isFirebaseConfigured()) {
+            await ensureAdminFirebaseSession();
+            students = (await firebase.database().ref("students").once("value")).val() || {};
+        } else {
+            throw new Error("local mode");
+        }
+    } catch (error) {
+        students = getLocalStudentRegistrations();
+    }
+
+    const approved = Object.values(students).filter(student => student.status === "approved");
+    count.innerText = `${approved.length} total`;
+    container.innerHTML = approved.length ? approved.map(student => `
+        <div style="padding:14px 0;border-top:1px solid #e5e7eb">
+            <strong>${student.name}</strong>
+            <div class="company">${student.email} - ${student.phone}</div>
+            <div class="company">${student.branch} - Roll No: ${student.rollNumber}</div>
+        </div>
+    `).join("") : "<p class=\"company\">No approved users yet.</p>";
 }
 
 async function displayStudentRequests() {
@@ -1343,6 +1379,7 @@ async function approveStudent(uid) {
             await firebase.database().ref(`students/${uid}/status`).set("approved");
         }
         await displayStudentRequests();
+        await displayApprovedStudents();
     } catch (error) {
         if (container) container.innerText = getFirebaseErrorMessage(error);
     }
@@ -1361,6 +1398,7 @@ async function rejectStudent(uid) {
             await firebase.database().ref(`students/${uid}`).remove();
         }
         await displayStudentRequests();
+        await displayApprovedStudents();
     } catch (error) {
         if (container) container.innerText = getFirebaseErrorMessage(error);
     }
