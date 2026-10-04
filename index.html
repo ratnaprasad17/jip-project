@@ -251,8 +251,8 @@
             <button class="logout-btn" onclick="adminLogout()">Logout</button>
         </div>
 
-        <p class="admin-note">Add new internships here. In the final application, this section should connect to a database.</p>
-        <p class="admin-warning">Before Firebase is connected, changes are saved only on this device and will not appear on other phones or computers.</p>
+        <p class="admin-note">Listings from configured Greenhouse and Lever boards sync daily. Manual posts need an application closing date.</p>
+        <p class="admin-warning">Stripe, Spotify, and Palantir are configured in functions/sources.json. Deploy the scheduled Firebase Function to start daily imports; see AUTOMATION.md.</p>
 
         <div class="admin-grid">
             <div><label class="admin-label">Internship Title</label><input class="admin-input" id="adminTitle" placeholder="Machine Learning Intern"></div>
@@ -276,6 +276,7 @@
             <div><label class="admin-label">Location</label><input class="admin-input" id="adminLocation" placeholder="Hyderabad"></div>
             <div><label class="admin-label">Stipend</label><input class="admin-input" id="adminStipend" placeholder="₹15,000/month"></div>
             <div><label class="admin-label">Duration</label><input class="admin-input" id="adminDuration" placeholder="3 Months"></div>
+            <div><label class="admin-label" for="adminClosingDate">Application closing date</label><input class="admin-input" id="adminClosingDate" type="date" required></div>
             <div class="full"><label class="admin-label">Skills</label><input class="admin-input" id="adminSkills" placeholder="Python, SQL, Machine Learning"></div>
             <div class="full"><label class="admin-label">Application Link</label><input class="admin-input" id="adminLink" placeholder="https://example.com/apply"></div>
         </div>

@@ -1,0 +1,20 @@
+[
+	{
+		"key": "stripe-greenhouse",
+		"provider": "greenhouse",
+		"board": "stripe",
+		"company": "Stripe"
+	},
+	{
+		"key": "spotify-lever",
+		"provider": "lever",
+		"board": "spotify",
+		"company": "Spotify"
+	},
+	{
+		"key": "palantir-lever",
+		"provider": "lever",
+		"board": "palantir",
+		"company": "Palantir"
+	}
+]

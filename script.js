@@ -138,6 +138,27 @@ function updateStudentProfile() {
     `;
 }
 
+function getLocalDateString(date = new Date()) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+}
+
+function removeExpiredInternships() {
+    const today = getLocalDateString();
+    const activeInternships = internships.filter(internship =>
+        !internship.closingDate || internship.closingDate >= today
+    );
+    if (activeInternships.length === internships.length) return false;
+
+    const activeIds = new Set(activeInternships.map(internship => internship.id));
+    internships = activeInternships;
+    bookmarks = bookmarks.filter(id => activeIds.has(id));
+    localStorage.setItem("bookmarks", JSON.stringify(bookmarks));
+    return true;
+}
+
 /* Load saved internships */
 try {
     const savedInternships = JSON.parse(localStorage.getItem("internships"));
@@ -503,7 +524,11 @@ function startSharedInternships() {
             const sharedInternships = snapshot.val();
             if (Array.isArray(sharedInternships)) {
                 internships = sharedInternships;
+                const expiredListingsRemoved = removeExpiredInternships();
                 localStorage.setItem("internships", JSON.stringify(internships));
+                if (expiredListingsRemoved) firebaseInternshipRef.set(internships).catch(error => {
+                    console.error("Expired internships could not be removed from shared storage.", error);
+                });
                 refreshInternshipViews();
             } else {
                 saveInternships();
@@ -526,6 +551,8 @@ try {
 } catch (error) {
     console.warn("Saved bookmarks could not be loaded.", error);
 }
+removeExpiredInternships();
+localStorage.setItem("internships", JSON.stringify(internships));
 
 /* =========================================================
    ADMIN AUTH
@@ -833,6 +860,7 @@ function createCard(internship) {
                 <div>📍 ${internship.location}</div>
                 <div>💰 ${internship.stipend}</div>
                 <div>⏱️ ${internship.duration}</div>
+                ${internship.postedDate ? `<div>🗓 Posted: ${internship.postedDate}</div>` : ""}
             </div>
             <div class="card-actions">
                 <button class="secondary-btn" onclick="showDetails(${internship.id})">Details</button>
@@ -989,17 +1017,22 @@ function addInternship() {
     const location = document.getElementById("adminLocation").value;
     const stipend = document.getElementById("adminStipend").value;
     const duration = document.getElementById("adminDuration").value;
+    const closingDate = document.getElementById("adminClosingDate").value;
     const skills = document.getElementById("adminSkills").value.split(",").map(s => s.trim());
     const link = document.getElementById("adminLink").value;
 
-    if (!title || !company || !specialization) {
-        alert("Please enter the internship title, company and specialization.");
+    if (!title || !company || !specialization || !closingDate) {
+        alert("Please enter the internship title, company, specialization and closing date.");
+        return;
+    }
+    if (closingDate < getLocalDateString()) {
+        alert("The application closing date must be today or later.");
         return;
     }
 
     internships.unshift({
         id: Date.now(),
-        title, company, type, branch, specialization,
+        title, company, type, branch, specialization, closingDate,
         location: location || "Not specified",
         stipend: stipend || "Not specified",
         duration: duration || "Not specified",
