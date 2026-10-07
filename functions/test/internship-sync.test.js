@@ -2,6 +2,7 @@
 
 const assert = require("node:assert/strict");
 const test = require("node:test");
+const { loadServiceAccount } = require("../index");
 const {
     getDateInTimeZone,
     getPostedDate,
@@ -12,6 +13,21 @@ const {
 } = require("../internship-sync");
 
 const source = { key: "sample-company", company: "Sample Company" };
+
+test("service account validation fails clearly for missing or invalid secrets", () => {
+    assert.throws(() => loadServiceAccount({}), /FIREBASE_SERVICE_ACCOUNT is not set/);
+    assert.throws(() => loadServiceAccount({ FIREBASE_SERVICE_ACCOUNT: "{" }), /valid service-account JSON/);
+    assert.throws(() => loadServiceAccount({
+        FIREBASE_SERVICE_ACCOUNT: JSON.stringify({ project_id: "internmatch--07" })
+    }), /missing project_id, client_email, or private_key/);
+    assert.throws(() => loadServiceAccount({
+        FIREBASE_SERVICE_ACCOUNT: JSON.stringify({
+            project_id: "another-project",
+            client_email: "runner@example.iam.gserviceaccount.com",
+            private_key: "not-a-real-key"
+        })
+    }), /expected internmatch--07/);
+});
 
 test("Greenhouse import keeps internship listings and normalizes fields", () => {
     const listings = normalizeGreenhouseJobs(source, [
@@ -35,6 +51,7 @@ test("Greenhouse import keeps internship listings and normalizes fields", () => 
     assert.equal(listings.length, 1);
     assert.equal(listings[0].company, "Sample Company");
     assert.equal(listings[0].type, "Online");
+    assert.equal(listings[0].branch, "Not specified");
     assert.deepEqual(listings[0].skills, ["Python", "SQL"]);
     assert.equal(listings[0]._sourceId, "14");
     assert.equal(listings[0].postedDate, "2026-09-30");
@@ -50,6 +67,46 @@ test("Lever import ignores insecure application URLs", () => {
     }]);
 
     assert.equal(listings.length, 0);
+});
+
+test("imports accept official ATS URLs and reject unrelated HTTPS hosts", () => {
+    const greenhouse = normalizeGreenhouseJobs(source, [
+        {
+            id: 18,
+            title: "Engineering Intern",
+            location: { name: "Remote" },
+            absolute_url: "https://evil.example/apply/18"
+        },
+        {
+            id: 19,
+            title: "Engineering Intern",
+            location: { name: "Remote" },
+            absolute_url: "https://boards.greenhouse.io/sample/jobs/19"
+        },
+        {
+            id: 20,
+            title: "Data Intern",
+            location: { name: "Remote" },
+            absolute_url: "https://stripe.com/jobs/search?gh_jid=20"
+        }
+    ]);
+    const lever = normalizeLeverPostings(source, [
+        {
+            id: "bad",
+            text: "Product Intern",
+            categories: { location: "Remote" },
+            hostedUrl: "https://jobs.example.com/bad"
+        },
+        {
+            id: "good",
+            text: "Product Intern",
+            categories: { location: "Remote" },
+            hostedUrl: "https://jobs.lever.co/sample/good"
+        }
+    ]);
+
+    assert.deepEqual(greenhouse.map(listing => listing._sourceId), ["19", "20"]);
+    assert.deepEqual(lever.map(listing => listing._sourceId), ["good"]);
 });
 
 test("sync preserves manual posts and keeps failed-source posts", () => {
@@ -71,6 +128,17 @@ test("successful source refresh removes listings no longer present", () => {
     ], "2026-10-01");
 
     assert.deepEqual(merged, []);
+});
+
+test("reconciliation removes stale imports and legacy sample listings", () => {
+    const merged = reconcileInternships([
+        { id: 1, title: "Machine Learning Intern", company: "TechNova AI" },
+        { id: 2, title: "Data Science Intern", company: "DataWorks" },
+        { id: 7, title: "Old internship", _sourceKey: "board-a", postedDate: "2026-04-01" },
+        { id: 8, title: "Recent internship", _sourceKey: "board-a", postedDate: "2026-09-01" }
+    ], [{ sourceKey: "board-a", status: "error", internships: [] }], "2026-10-06");
+
+    assert.deepEqual(merged.map(internship => internship.id), [8]);
 });
 
 test("stable IDs are repeatable and date uses the configured timezone", () => {
@@ -101,4 +169,31 @@ test("Lever createdAt becomes the posted date", () => {
     }]);
 
     assert.equal(listings[0].postedDate, "2026-09-30");
+});
+
+test("unknown work arrangements are not mislabeled as offline", () => {
+    const listings = normalizeGreenhouseJobs(source, [{
+        id: 17,
+        title: "Product Intern",
+        content: "Collaborate with the product team. The interview includes an in-person office visit.",
+        location: { name: "New York, NY" },
+        absolute_url: "https://boards.greenhouse.io/sample/jobs/17"
+    }]);
+
+    assert.equal(listings[0].type, "Not specified");
+});
+
+test("escaped job descriptions omit generic company boilerplate and decode HTML", () => {
+    const listings = normalizeGreenhouseJobs(source, [{
+        id: 21,
+        title: "Software Engineer Intern",
+        content: "&lt;h2&gt;Who we are&lt;/h2&gt;&lt;p&gt;About Sample Company&lt;/p&gt;&lt;h2&gt;What you’ll do&lt;/h2&gt;&lt;p&gt;Build services for customers.&lt;/p&gt;&lt;h2&gt;Minimum requirements&lt;/h2&gt;&lt;p&gt;Know Python &amp;amp; SQL.&lt;/p&gt;",
+        location: { name: "Bengaluru" },
+        absolute_url: "https://boards.greenhouse.io/sample/jobs/21"
+    }]);
+
+    assert.match(listings[0].description, /Build services for customers/);
+    assert.match(listings[0].description, /Python & SQL/);
+    assert.doesNotMatch(listings[0].description, /Who we are|About Sample Company|&lt;h2/);
+    assert.equal(listings[0].type, "Not specified");
 });

@@ -1,8 +1,7 @@
 "use strict";
 
-const { initializeApp } = require("firebase-admin/app");
+const { cert, initializeApp } = require("firebase-admin/app");
 const { getDatabase } = require("firebase-admin/database");
-const { onSchedule } = require("firebase-functions/v2/scheduler");
 const {
     fetchSource,
     getDateInTimeZone,
@@ -10,24 +9,42 @@ const {
 } = require("./internship-sync");
 const sources = require("./sources.json");
 
-initializeApp({
-    databaseURL: "https://internmatch--07-default-rtdb.firebaseio.com"
-});
+const DATABASE_URL = "https://internmatch--07-default-rtdb.firebaseio.com";
 
-async function syncInternships() {
+function loadServiceAccount(environment = process.env) {
+    const serialized = environment.FIREBASE_SERVICE_ACCOUNT;
+    if (!serialized) throw new Error("FIREBASE_SERVICE_ACCOUNT is not set.");
+
+    let serviceAccount;
+    try {
+        serviceAccount = JSON.parse(serialized);
+    } catch (error) {
+        throw new Error("FIREBASE_SERVICE_ACCOUNT must contain valid service-account JSON.");
+    }
+
+    if (!serviceAccount.project_id || !serviceAccount.client_email || !serviceAccount.private_key) {
+        throw new Error("FIREBASE_SERVICE_ACCOUNT is missing project_id, client_email, or private_key.");
+    }
+    if (serviceAccount.project_id !== "internmatch--07") {
+        throw new Error(`Service account belongs to ${serviceAccount.project_id}, expected internmatch--07.`);
+    }
+    return serviceAccount;
+}
+
+async function syncInternships(database = getDatabase()) {
     const results = await Promise.all(sources.map(async source => {
         try {
             const internships = await fetchSource(source);
             console.log(`Imported ${internships.length} internships from ${source.key}.`);
             return { sourceKey: source.key, status: "success", internships };
         } catch (error) {
-            console.error(`Could not sync source ${source.key}.`, error);
+            console.error(`Could not sync source ${source.key}: ${error.message}`);
             return { sourceKey: source.key, status: "error", internships: [] };
         }
     }));
 
     const today = getDateInTimeZone();
-    const internshipsRef = getDatabase().ref("internships");
+    const internshipsRef = database.ref("internships");
     const transaction = await internshipsRef.transaction(current => {
         if (current === null && !results.some(result =>
             result.status === "success" && result.internships.length > 0
@@ -35,13 +52,31 @@ async function syncInternships() {
         return reconcileInternships(current, results, today);
     });
 
-    console.log(`Internship sync complete. Database updated: ${transaction.committed}.`);
+    if (!transaction.committed) {
+        console.log("No database update was needed; no successful feed contained publishable listings.");
+        return;
+    }
+
+    const publishedCount = Array.isArray(transaction.snapshot.val())
+        ? transaction.snapshot.val().length
+        : 0;
+    console.log(`Internship sync completed. Published catalog contains ${publishedCount} listings.`);
 }
 
-exports.syncInternshipsDaily = onSchedule({
-    schedule: "15 3 * * *",
-    timeZone: "Asia/Kolkata",
-    region: "asia-south1",
-    timeoutSeconds: 300,
-    memory: "256MiB"
-}, syncInternships);
+async function main() {
+    const serviceAccount = loadServiceAccount();
+    initializeApp({
+        credential: cert(serviceAccount),
+        databaseURL: DATABASE_URL
+    });
+    await syncInternships();
+}
+
+if (require.main === module) {
+    main().catch(error => {
+        console.error(`Internship sync failed: ${error.message}`);
+        process.exitCode = 1;
+    });
+}
+
+module.exports = { loadServiceAccount, syncInternships };

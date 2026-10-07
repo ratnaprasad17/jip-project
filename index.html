@@ -5,6 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>InternMatch - Find Your Internship</title>
 <link rel="icon" type="image/jpeg" href="vasavi-logo.jpg">
+<script>
+    try {
+        const savedTheme = localStorage.getItem("siteTheme");
+        document.documentElement.dataset.theme = savedTheme === "light" || savedTheme === "dark"
+            ? savedTheme
+            : (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    } catch (error) {
+        document.documentElement.dataset.theme = "light";
+    }
+</script>
 <link rel="stylesheet" href="style.css">
 </head>
 <body class="auth-locked">
@@ -21,6 +31,8 @@
         </div>
     </div>
 </div>
+
+<div id="theme-toggle-root"></div>
 
 <!-- ================= AUTH GATE ================= -->
 <section id="authGate">
@@ -90,7 +102,7 @@
             <div class="hero-stats" aria-label="Internship highlights">
                 <div class="hero-stat"><strong id="internshipCount">0</strong><span>current opportunities</span></div>
                 <div class="hero-stat"><strong id="onlineCount">0</strong><span>online options</span></div>
-                <div class="hero-stat"><strong>Daily</strong><span>developer updates</span></div>
+                <div class="hero-stat"><strong>5</strong><span>configured job boards</span></div>
             </div>
         </div>
     </div>
@@ -98,7 +110,7 @@
     <div class="section">
         <div class="section-title">
             <h2>🔥 Featured Internships</h2>
-            <span>Updated daily by our team</span>
+            <span>Daily refresh from official job boards</span>
         </div>
         <div class="featured-wrapper">
             <div class="featured" id="featuredContainer"></div>
@@ -111,7 +123,7 @@
             <span>Compare roles, places and stipends</span>
         </div>
         <div class="search-box">
-            <input type="text" id="searchInput" placeholder="Search internships, skills, companies..."
+            <input type="text" id="searchInput" aria-label="Search internships, skills, or companies" placeholder="Search internships, skills, companies..."
                    oninput="displayInternships()">
         </div>
         <div class="internship-grid" id="internshipContainer"></div>
@@ -141,15 +153,15 @@
         <p class="form-subtitle">We'll find internships that match your profile.</p>
 
         <div class="form-group">
-            <label>What type of internship do you want?</label>
-            <div class="choice-row">
-                <div class="choice selected" id="onlineChoice" onclick="selectType('Online')">🌐 Online</div>
-                <div class="choice" id="offlineChoice" onclick="selectType('Offline')">🏢 Offline</div>
+            <label id="internshipTypeLabel">What type of internship do you want?</label>
+            <div class="choice-row" role="group" aria-labelledby="internshipTypeLabel">
+                <button class="choice selected" id="onlineChoice" type="button" aria-pressed="true" onclick="selectType('Online')">🌐 Online</button>
+                <button class="choice" id="offlineChoice" type="button" aria-pressed="false" onclick="selectType('Offline')">🏢 Offline</button>
             </div>
         </div>
 
         <div class="form-group">
-            <label>Your Branch</label>
+            <label for="branch">Your Branch</label>
             <select id="branch">
                 <option value="">Select Branch</option>
                 <option>Computer Science</option>
@@ -165,7 +177,7 @@
         </div>
 
         <div class="form-group">
-            <label>Specialization / Interest</label>
+            <label for="specialization">Specialization / Interest</label>
             <select id="specialization">
                 <option value="">Select Specialization</option>
                 <option>Artificial Intelligence</option>
@@ -184,23 +196,13 @@
         </div>
 
         <div class="form-group">
-            <label>Your Skills</label>
+            <label for="skills">Your Skills</label>
             <input type="text" id="skills" placeholder="Example: Python, SQL, Machine Learning">
         </div>
 
         <div class="form-group">
-            <label>Preferred Location</label>
+            <label for="location">Preferred Location</label>
             <input type="text" id="location" placeholder="Example: Hyderabad, Bangalore, Chennai">
-        </div>
-
-        <div class="form-group">
-            <label>Graduation Year</label>
-            <select id="graduation">
-                <option>2026</option>
-                <option>2027</option>
-                <option>2028</option>
-                <option>2029</option>
-            </select>
         </div>
 
         <button class="primary-btn full-width" onclick="findMatches()">🔍 Find My Internships</button>
@@ -225,12 +227,12 @@
 
         <form onsubmit="event.preventDefault(); adminLogin();">
             <div class="form-group">
-                <label for="adminLoginId">Admin ID</label>
-                <input class="admin-input" id="adminLoginId" autocomplete="username" required>
+                <label for="adminLoginId">Admin email</label>
+                <input class="admin-input" id="adminLoginId" type="email" autocomplete="username" required>
             </div>
 
             <div class="form-group">
-                <label for="adminPasskey">Passkey</label>
+                <label for="adminPasskey">Password</label>
                 <div class="password-field">
                     <input class="admin-input" id="adminPasskey" type="password"
                            autocomplete="current-password" required>
@@ -252,17 +254,17 @@
         </div>
 
         <p class="admin-note">Listings from configured Greenhouse and Lever boards sync daily. Manual posts need an application closing date.</p>
-        <p class="admin-warning">Stripe, Spotify, and Palantir are configured in functions/sources.json. Deploy the scheduled Firebase Function to start daily imports; see AUTOMATION.md.</p>
+        <p class="admin-warning">Klaviyo, ID.me, Stripe, Spotify, and Palantir boards are configured for scheduled imports. Openings appear only after a successful feed sync.</p>
 
         <div class="admin-grid">
-            <div><label class="admin-label">Internship Title</label><input class="admin-input" id="adminTitle" placeholder="Machine Learning Intern"></div>
-            <div><label class="admin-label">Company</label><input class="admin-input" id="adminCompany" placeholder="Company Name"></div>
+            <div><label class="admin-label" for="adminTitle">Internship Title</label><input class="admin-input" id="adminTitle" placeholder="Machine Learning Intern"></div>
+            <div><label class="admin-label" for="adminCompany">Company</label><input class="admin-input" id="adminCompany" placeholder="Company Name"></div>
             <div>
-                <label class="admin-label">Type</label>
+                <label class="admin-label" for="adminType">Type</label>
                 <select class="admin-input" id="adminType"><option>Online</option><option>Offline</option></select>
             </div>
             <div>
-                <label class="admin-label">Branch</label>
+                <label class="admin-label" for="adminBranch">Branch</label>
                 <select class="admin-input" id="adminBranch">
                     <option>Computer Science</option>
                     <option>Artificial Intelligence</option>
@@ -272,13 +274,13 @@
                     <option>Civil Engineering</option>
                 </select>
             </div>
-            <div><label class="admin-label">Specialization</label><input class="admin-input" id="adminSpecialization" placeholder="Machine Learning"></div>
-            <div><label class="admin-label">Location</label><input class="admin-input" id="adminLocation" placeholder="Hyderabad"></div>
-            <div><label class="admin-label">Stipend</label><input class="admin-input" id="adminStipend" placeholder="₹15,000/month"></div>
-            <div><label class="admin-label">Duration</label><input class="admin-input" id="adminDuration" placeholder="3 Months"></div>
+            <div><label class="admin-label" for="adminSpecialization">Specialization</label><input class="admin-input" id="adminSpecialization" placeholder="Machine Learning"></div>
+            <div><label class="admin-label" for="adminLocation">Location</label><input class="admin-input" id="adminLocation" placeholder="Hyderabad"></div>
+            <div><label class="admin-label" for="adminStipend">Stipend</label><input class="admin-input" id="adminStipend" placeholder="₹15,000/month"></div>
+            <div><label class="admin-label" for="adminDuration">Duration</label><input class="admin-input" id="adminDuration" placeholder="3 Months"></div>
             <div><label class="admin-label" for="adminClosingDate">Application closing date</label><input class="admin-input" id="adminClosingDate" type="date" required></div>
-            <div class="full"><label class="admin-label">Skills</label><input class="admin-input" id="adminSkills" placeholder="Python, SQL, Machine Learning"></div>
-            <div class="full"><label class="admin-label">Application Link</label><input class="admin-input" id="adminLink" placeholder="https://example.com/apply"></div>
+            <div class="full"><label class="admin-label" for="adminSkills">Skills</label><input class="admin-input" id="adminSkills" placeholder="Python, SQL, Machine Learning"></div>
+            <div class="full"><label class="admin-label" for="adminLink">Application Link</label><input class="admin-input" id="adminLink" type="url" inputmode="url" placeholder="https://example.com/apply" required></div>
         </div>
 
         <button class="primary-btn mt-20" onclick="addInternship()">+ Publish Internship</button>
@@ -304,9 +306,9 @@
 </section>
 
 <!-- ================= MODAL ================= -->
-<div class="modal" id="detailsModal">
+<div class="modal" id="detailsModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
     <div class="modal-content">
-        <button class="close" onclick="closeModal()">×</button>
+        <button class="close" type="button" aria-label="Close internship details" onclick="closeModal()">×</button>
         <div id="modalBody"></div>
     </div>
 </div>
@@ -322,11 +324,14 @@
     © 2026 InternMatch — Student Project
 </footer>
 
+<div id="chatbot-root"></div>
+
 <!-- ================= FIREBASE SDK ================= -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
-<script src="script.js"></script>
+<script type="module" src="/script.js"></script>
+<script type="module" src="/src/chatbot.jsx"></script>
 
 </body>
 </html>

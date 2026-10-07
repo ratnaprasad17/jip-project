@@ -4,7 +4,10 @@
   "description": "",
   "main": "script.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "npm --prefix functions test",
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0"
   },
   "repository": {
     "type": "git",
@@ -17,5 +20,14 @@
   "bugs": {
     "url": "https://github.com/ratnaprasad17/jip-project/issues"
   },
-  "homepage": "https://github.com/ratnaprasad17/jip-project#readme"
+  "homepage": "https://github.com/ratnaprasad17/jip-project#readme",
+  "dependencies": {
+    "bot-avatars": "^0.2.2",
+    "lucide-react": "^1.52.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "devDependencies": {
+    "vite": "^8.3.3"
+  }
 }

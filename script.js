@@ -1,92 +1,112 @@
 /* =========================================================
    INTERNSHIP DATA
 ========================================================= */
-let internships = [
-    {
-        id: 1,
-        title: "Machine Learning Intern",
-        company: "TechNova AI",
-        type: "Online",
-        branch: "Computer Science",
-        specialization: "Machine Learning",
-        location: "Remote",
-        stipend: "₹15,000/month",
-        duration: "3 Months",
-        skills: ["Python", "Machine Learning", "TensorFlow"],
-        description: "Work on real-world machine learning projects and build predictive models.",
-        link: "#"
-    },
-    {
-        id: 2,
-        title: "Data Science Intern",
-        company: "DataWorks",
-        type: "Online",
-        branch: "Artificial Intelligence",
-        specialization: "Data Science",
-        location: "Remote",
-        stipend: "₹12,000/month",
-        duration: "2 Months",
-        skills: ["Python", "SQL", "Pandas"],
-        description: "Analyze datasets and create useful business insights using data science.",
-        link: "#"
-    },
-    {
-        id: 3,
-        title: "Web Development Intern",
-        company: "WebCraft Solutions",
-        type: "Offline",
-        branch: "Computer Science",
-        specialization: "Web Development",
-        location: "Hyderabad",
-        stipend: "₹10,000/month",
-        duration: "3 Months",
-        skills: ["HTML", "CSS", "JavaScript"],
-        description: "Build modern websites and web applications with an experienced development team.",
-        link: "#"
-    },
-    {
-        id: 4,
-        title: "AI Research Intern",
-        company: "FutureAI Labs",
-        type: "Online",
-        branch: "Artificial Intelligence",
-        specialization: "Artificial Intelligence",
-        location: "Remote",
-        stipend: "₹20,000/month",
-        duration: "6 Months",
-        skills: ["Python", "Deep Learning", "PyTorch"],
-        description: "Explore modern AI techniques and contribute to experimental research projects.",
-        link: "#"
-    },
-    {
-        id: 5,
-        title: "Cyber Security Intern",
-        company: "SecureNet",
-        type: "Offline",
-        branch: "Information Technology",
-        specialization: "Cyber Security",
-        location: "Bangalore",
-        stipend: "₹18,000/month",
-        duration: "4 Months",
-        skills: ["Linux", "Networking", "Security"],
-        description: "Learn practical cybersecurity concepts and work with security professionals.",
-        link: "#"
-    },
-    {
-        id: 6,
-        title: "Cloud Computing Intern",
-        company: "CloudSphere",
-        type: "Online",
-        branch: "Information Technology",
-        specialization: "Cloud Computing",
-        location: "Remote",
-        stipend: "₹14,000/month",
-        duration: "3 Months",
-        skills: ["AWS", "Docker", "Linux"],
-        description: "Learn cloud infrastructure and deploy applications using modern cloud technologies.",
-        link: "#"
-    }
+let internships = [];
+const LEGACY_DEMO_LISTINGS = [
+    { id: 1, title: "Machine Learning Intern", company: "TechNova AI" },
+    { id: 2, title: "Data Science Intern", company: "DataWorks" },
+    { id: 3, title: "Web Development Intern", company: "WebCraft Solutions" },
+    { id: 4, title: "AI Research Intern", company: "FutureAI Labs" },
+    { id: 5, title: "Cyber Security Intern", company: "SecureNet" },
+    { id: 6, title: "Cloud Computing Intern", company: "CloudSphere" }
 ];
+const INDIA_CITY_PATTERN = /\b(?:bengaluru|bangalore|hyderabad|mumbai|pune|chennai|gurugram|gurgaon|noida|new delhi|delhi|kolkata|ahmedabad|jaipur|kochi|cochin|thiruvananthapuram|visakhapatnam|vizag|lucknow|indore|bhubaneswar|mysuru|mysore|mangaluru|mangalore)\b/i;
+
+function isIndiaBasedListing(internship) {
+    const location = String(internship.location || "");
+    return /\bindia\b/i.test(location) || INDIA_CITY_PATTERN.test(location);
+}
+
+function sortIndiaFirst(listings) {
+    return [...listings].sort((left, right) => {
+        const indiaOrder = Number(isIndiaBasedListing(right)) - Number(isIndiaBasedListing(left));
+        if (indiaOrder) return indiaOrder;
+        return String(right.postedDate || "").localeCompare(String(left.postedDate || ""));
+    });
+}
+
+function isLegacyDemoListing(internship) {
+    return !internship._sourceKey && LEGACY_DEMO_LISTINGS.some(sample =>
+        internship.id === sample.id && internship.title === sample.title && internship.company === sample.company
+    );
+}
+
+function isCurrentListing(internship) {
+    const today = getLocalDateString();
+    if (internship.closingDate && internship.closingDate < today) return false;
+    if (internship._sourceKey && internship.postedDate) {
+        const cutoff = new Date(`${today}T00:00:00.000Z`);
+        cutoff.setUTCDate(cutoff.getUTCDate() - 90);
+        if (internship.postedDate < cutoff.toISOString().slice(0, 10)) return false;
+    }
+    return !isLegacyDemoListing(internship);
+}
+
+function getWorkTypeFromLocation(location) {
+    const normalized = String(location || "").toLowerCase();
+    if (/remote|work from home|anywhere|virtual/.test(normalized)) return "Online";
+    if (/hybrid/.test(normalized)) return "Hybrid";
+    if (/on[- ]site|onsite|in[- ]person|office[- ]based/.test(normalized)) return "Offline";
+    return "Not specified";
+}
+
+function getCachedRoleDescription(description) {
+    const original = String(description || "");
+    let text = original;
+    for (let pass = 0; pass < 2; pass += 1) {
+        const parsed = new DOMParser().parseFromString(text, "text/html");
+        const decoded = parsed.body.textContent || "";
+        if (decoded === text) break;
+        text = decoded;
+    }
+
+    const roleStart = text.match(/what you[’']ll do\s*/i);
+    if (roleStart) text = text.slice(roleStart.index + roleStart[0].length);
+    if (/&lt;|<\/?(?:h[1-6]|p|ul|li)\b/i.test(original)) {
+        if (!roleStart) return "Open the original posting for role responsibilities and requirements.";
+    }
+    return text
+        .replace(/(Responsibilities|Who you are|Minimum requirements|Preferred qualifications)/gi, " $1 ")
+        .replace(/\s+/g, " ")
+        .trim();
+}
+
+function normalizeImportedListing(internship) {
+    if (!internship._sourceKey) return internship;
+    return {
+        ...internship,
+        type: getWorkTypeFromLocation(internship.location),
+        branch: internship.branch === "All branches" ? "Not specified" : internship.branch,
+        description: getCachedRoleDescription(internship.description)
+    };
+}
+
+function getInternshipChatData() {
+    return sortIndiaFirst(internships).map(internship => ({
+        title: internship.title,
+        company: internship.company,
+        isIndia: isIndiaBasedListing(internship),
+        type: internship.type,
+        branch: internship.branch === "All branches" ? "Not specified" : internship.branch,
+        specialization: internship.specialization,
+        location: internship.location,
+        stipend: internship.stipend,
+        duration: internship.duration,
+        skills: Array.isArray(internship.skills) ? [...internship.skills] : [],
+        postedDate: internship.postedDate || "",
+        closingDate: internship.closingDate || "",
+        description: internship.description || "",
+        link: getSafeApplicationUrl(internship.link)
+    }));
+}
+
+window.getInternshipChatData = getInternshipChatData;
+
+function publishInternshipUpdates() {
+    window.dispatchEvent(new CustomEvent("internships:updated", {
+        detail: getInternshipChatData()
+    }));
+}
 
 /* =========================================================
    FIREBASE CONFIG
@@ -105,17 +125,37 @@ const FIREBASE_CONFIG = {
 let firebaseInternshipRef = null;
 let currentStudent = null;
 
-function saveStudentSession(student) {
-    currentStudent = student;
-    localStorage.setItem("studentSession", JSON.stringify(student));
+function escapeHTML(value) {
+    return String(value ?? "").replace(/[&<>"']/g, character => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+    })[character]);
 }
 
-function getStoredStudentSession() {
+function hasPublishedValue(value) {
+    const normalized = String(value || "").trim().toLowerCase();
+    return normalized !== "" && !["not specified", "unknown", "n/a"].includes(normalized);
+}
+
+function getSafeApplicationUrl(value) {
     try {
-        return JSON.parse(localStorage.getItem("studentSession"));
+        const url = new URL(value);
+        return url.protocol === "https:" ? url.href : "";
     } catch (error) {
-        return null;
+        return "";
     }
+}
+
+function findInternshipById(id) {
+    const targetId = String(id);
+    return internships.find(internship => String(internship.id) === targetId);
+}
+
+function saveStudentSession(student) {
+    currentStudent = student;
 }
 
 function clearStudentSession() {
@@ -124,16 +164,16 @@ function clearStudentSession() {
 }
 
 function updateStudentProfile() {
-    const student = currentStudent || getStoredStudentSession();
+    const student = currentStudent;
     if (!student) return;
     currentStudent = student;
     document.getElementById("profileName").innerText = student.name || "Student";
     document.getElementById("profileEmail").innerText = student.email || "";
     document.getElementById("profileAvatar").innerText = (student.name || "S").charAt(0).toUpperCase();
     document.getElementById("profileDetails").innerHTML = `
-        <div><span>Phone</span><strong>${student.phone || "Not added"}</strong></div>
-        <div><span>College / Branch</span><strong>${student.branch || "Not added"}</strong></div>
-        <div><span>Roll Number</span><strong>${student.rollNumber || "Not added"}</strong></div>
+        <div><span>Phone</span><strong>${escapeHTML(student.phone || "Not added")}</strong></div>
+        <div><span>College / Branch</span><strong>${escapeHTML(student.branch || "Not added")}</strong></div>
+        <div><span>Roll Number</span><strong>${escapeHTML(student.rollNumber || "Not added")}</strong></div>
         <div><span>Account Status</span><strong class="profile-status">Approved</strong></div>
     `;
 }
@@ -147,14 +187,12 @@ function getLocalDateString(date = new Date()) {
 
 function removeExpiredInternships() {
     const today = getLocalDateString();
-    const activeInternships = internships.filter(internship =>
-        !internship.closingDate || internship.closingDate >= today
-    );
+    const activeInternships = internships.filter(isCurrentListing);
     if (activeInternships.length === internships.length) return false;
 
-    const activeIds = new Set(activeInternships.map(internship => internship.id));
+    const activeIds = new Set(activeInternships.map(internship => String(internship.id)));
     internships = activeInternships;
-    bookmarks = bookmarks.filter(id => activeIds.has(id));
+    bookmarks = bookmarks.filter(id => activeIds.has(String(id)));
     localStorage.setItem("bookmarks", JSON.stringify(bookmarks));
     return true;
 }
@@ -162,7 +200,9 @@ function removeExpiredInternships() {
 /* Load saved internships */
 try {
     const savedInternships = JSON.parse(localStorage.getItem("internships"));
-    if (Array.isArray(savedInternships)) internships = savedInternships;
+    if (Array.isArray(savedInternships)) internships = savedInternships
+        .map(normalizeImportedListing)
+        .filter(isCurrentListing);
 } catch (error) {
     console.warn("Saved internships could not be loaded.", error);
 }
@@ -308,7 +348,11 @@ function getFirebaseErrorMessage(error) {
 async function ensureAdminFirebaseSession() {
     if (!isFirebaseConfigured()) throw new Error("Firebase is not configured yet.");
     ensureFirebase();
-    if (!firebase.auth().currentUser) await firebase.auth().signInAnonymously();
+    const user = firebase.auth().currentUser;
+    if (!user) throw new Error("Sign in with an administrator account first.");
+    const snapshot = await firebase.database().ref(`admins/${user.uid}`).once("value");
+    if (snapshot.val() !== true) throw new Error("This account is not approved for administrator access.");
+    return user;
 }
 
 /* =========================================================
@@ -316,11 +360,11 @@ async function ensureAdminFirebaseSession() {
 ========================================================= */
 async function registerStudent() {
     const message = document.getElementById("registrationMessage");
+    if (!isFirebaseConfigured()) {
+        message.innerText = "Student registration requires the configured Firebase project.";
+        return;
+    }
     try {
-        if (!isFirebaseConfigured()) {
-            saveLocalStudentRegistration(message);
-            return;
-        }
         ensureFirebase();
         const credential = await firebase.auth().createUserWithEmailAndPassword(
             document.getElementById("registerEmail").value.trim(),
@@ -339,38 +383,8 @@ async function registerStudent() {
         document.getElementById("studentLoginMessage").innerText =
             "Registration submitted. Wait for founder approval before logging in.";
     } catch (error) {
-        if (isFirebaseConfigured()) {
-            message.innerText = getFirebaseErrorMessage(error);
-        } else {
-            saveLocalStudentRegistration(message);
-        }
+        message.innerText = getFirebaseErrorMessage(error);
     }
-}
-
-function getLocalStudentRegistrations() {
-    try {
-        return JSON.parse(localStorage.getItem("studentRegistrations")) || {};
-    } catch (error) {
-        return {};
-    }
-}
-
-function saveLocalStudentRegistration(message) {
-    const registrations = getLocalStudentRegistrations();
-    const uid = `local-${Date.now()}`;
-    registrations[uid] = {
-        name: document.getElementById("registerName").value.trim(),
-        email: document.getElementById("registerEmail").value.trim().toLowerCase(),
-        password: document.getElementById("registerPassword").value,
-        phone: document.getElementById("registerPhone").value.trim(),
-        branch: document.getElementById("registerBranch").value.trim(),
-        rollNumber: document.getElementById("registerRoll").value.trim(),
-        status: "pending"
-    };
-    localStorage.setItem("studentRegistrations", JSON.stringify(registrations));
-    showStudentLogin();
-    document.getElementById("studentLoginMessage").innerText =
-        "Registration submitted. An admin must approve your account before logging in.";
 }
 
 async function studentLogin() {
@@ -424,47 +438,20 @@ async function studentLogin() {
 
     } catch (error) {
         hideLoader();
-        if (isFirebaseConfigured()) {
-            console.error("Student login failed:", error);
-            message.innerText = error && ["auth/invalid-credential", "auth/wrong-password", "auth/user-not-found"].includes(error.code)
-                ? "Student account not found or password is incorrect. Register first, then use the approved account."
-                : getFirebaseErrorMessage(error);
-            if (submitButton) {
-                submitButton.disabled = false;
-                submitButton.innerText = "Student Login";
-            }
-            return;
-        }
-        const registrations = getLocalStudentRegistrations();
-        const student = Object.values(registrations).find(account =>
-            account.email === email.toLowerCase() &&
-            account.password === password
-        );
-
-        if (student && student.status === "approved") {
-            saveStudentSession(student);
-            showLoader("Loading internships...");
-            setTimeout(() => {
-                showLoaderSuccess(`Welcome, ${student.name.split(" ")[0]}!`, () => {
-                    document.body.classList.remove("auth-locked", "founder-login");
-                    document.getElementById("authGate").hidden = true;
-                    document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
-                    document.getElementById("home").classList.add("active");
-                    updateStudentProfile();
-                });
-            }, 800);
-        } else {
-            message.innerText = "Unable to log in. Check your email and password.";
-            if (submitButton) {
-                submitButton.disabled = false;
-                submitButton.innerText = "Student Login";
-            }
+        console.error("Student login failed:", error);
+        message.innerText = error && ["auth/invalid-credential", "auth/wrong-password", "auth/user-not-found"].includes(error.code)
+            ? "Student account not found or password is incorrect. Register first, then use the approved account."
+            : getFirebaseErrorMessage(error);
+        if (submitButton) {
+            submitButton.disabled = false;
+            submitButton.innerText = "Student Login";
         }
     }
 }
 
 function studentLogout() {
     clearStudentSession();
+    stopSharedInternships();
     if (firebase.apps.length && firebase.auth().currentUser) firebase.auth().signOut();
     hideLoader();
     document.body.classList.add("auth-locked");
@@ -509,6 +496,7 @@ function saveInternships() {
 }
 
 function refreshInternshipViews() {
+    publishInternshipUpdates();
     displayInternships();
     displayFeatured();
     displayAdminInternships();
@@ -517,21 +505,27 @@ function refreshInternshipViews() {
 
 function startSharedInternships() {
     if (!isFirebaseConfigured() || !firebase.auth().currentUser) return;
+    if (firebaseInternshipRef) return;
     try {
         ensureFirebase();
         firebaseInternshipRef = firebase.database().ref("internships");
         firebaseInternshipRef.on("value", snapshot => {
             const sharedInternships = snapshot.val();
             if (Array.isArray(sharedInternships)) {
-                internships = sharedInternships;
-                const expiredListingsRemoved = removeExpiredInternships();
+                internships = sharedInternships.map(normalizeImportedListing);
+                const importedDataNormalized = JSON.stringify(internships) !== JSON.stringify(sharedInternships);
+                const outdatedListingsRemoved = removeExpiredInternships();
                 localStorage.setItem("internships", JSON.stringify(internships));
-                if (expiredListingsRemoved) firebaseInternshipRef.set(internships).catch(error => {
-                    console.error("Expired internships could not be removed from shared storage.", error);
+                if ((outdatedListingsRemoved || importedDataNormalized) && isAdminAuthenticated()) firebaseInternshipRef.set(internships).catch(error => {
+                    console.error("Normalized internships could not be saved to shared storage.", error);
                 });
                 refreshInternshipViews();
+            } else if (sharedInternships === null) {
+                localStorage.setItem("internships", JSON.stringify(internships));
+                refreshInternshipViews();
+                if (isAdminAuthenticated()) saveInternships();
             } else {
-                saveInternships();
+                console.error("Shared internships have an unexpected data format.");
             }
         }, error => {
             console.error("Shared internships could not be loaded.", error);
@@ -539,6 +533,12 @@ function startSharedInternships() {
     } catch (error) {
         console.error("Firebase could not be started.", error);
     }
+}
+
+function stopSharedInternships() {
+    if (!firebaseInternshipRef) return;
+    firebaseInternshipRef.off();
+    firebaseInternshipRef = null;
 }
 
 /* =========================================================
@@ -557,37 +557,13 @@ localStorage.setItem("internships", JSON.stringify(internships));
 /* =========================================================
    ADMIN AUTH
 ========================================================= */
-const ADMIN_ID = "admin";
-const ADMIN_PASSKEY = "DTI PROJECT 5";
 let adminAuthenticatedInMemory = false;
-
-function getAdminAuthStorages() {
-    const storages = [];
-    try { if (window.sessionStorage) storages.push(window.sessionStorage); } catch (e) {}
-    try { if (window.localStorage) storages.push(window.localStorage); } catch (e) {}
-    return storages;
-}
 
 function setAdminAuthenticated(authenticated) {
     adminAuthenticatedInMemory = authenticated;
-    getAdminAuthStorages().forEach(storage => {
-        try {
-            if (authenticated) storage.setItem("adminAuthenticated", "true");
-            else storage.removeItem("adminAuthenticated");
-        } catch (error) {
-            console.warn("Admin login state could not be saved.", error);
-        }
-    });
 }
 
 function getStoredAdminAuthentication() {
-    for (const storage of getAdminAuthStorages()) {
-        try {
-            if (storage.getItem("adminAuthenticated") === "true") return true;
-        } catch (error) {
-            console.warn("Admin login state could not be read.", error);
-        }
-    }
     return false;
 }
 
@@ -615,19 +591,23 @@ function updateAdminView() {
    ADMIN LOGIN / LOGOUT
 ========================================================= */
 async function adminLogin() {
-    const adminId = document.getElementById("adminLoginId").value.trim();
+    const adminEmail = document.getElementById("adminLoginId").value.trim();
     const passkey = document.getElementById("adminPasskey").value;
     const error = document.getElementById("loginError");
 
-    if (adminId !== ADMIN_ID || passkey !== ADMIN_PASSKEY) {
-        error.innerText = "Incorrect Admin ID or passkey.";
+    if (!isFirebaseConfigured()) {
+        error.innerText = "Administrator login requires the configured Firebase project.";
         return;
     }
 
     showLoader("Authenticating admin...");
 
-    const openDashboard = () => {
+    try {
+        ensureFirebase();
+        await firebase.auth().signInWithEmailAndPassword(adminEmail, passkey);
+        await ensureAdminFirebaseSession();
         setAdminAuthenticated(true);
+        startSharedInternships();
         error.innerText = "";
         document.getElementById("adminPasskey").value = "";
 
@@ -637,23 +617,22 @@ async function adminLogin() {
         document.querySelectorAll(".page").forEach(page => page.classList.remove("active"));
         document.getElementById("admin").classList.add("active");
         updateAdminView();
-    };
-
-    try {
-        await ensureAdminFirebaseSession();
-    } catch (firebaseError) {
-        console.warn("Firebase admin session failed, using local mode.", firebaseError);
+    } catch (loginError) {
+        if (firebase.auth().currentUser) await firebase.auth().signOut();
+        error.innerText = getFirebaseErrorMessage(loginError);
+        hideLoader();
+        return;
     }
 
     updateLoaderText("Loading dashboard...");
-    showLoaderSuccess("Welcome back, Admin!", openDashboard);
+    showLoaderSuccess("Welcome back, Admin!");
 }
 
 function adminLogout() {
     setAdminAuthenticated(false);
-    document.getElementById("adminLoginId").value = "";
     document.getElementById("adminPasskey").value = "";
     document.getElementById("loginError").innerText = "";
+    stopSharedInternships();
     if (firebase.apps.length) firebase.auth().signOut();
 
     document.body.classList.remove("founder-login");
@@ -670,27 +649,22 @@ async function displayApprovedStudents() {
     const count = document.getElementById("approvedStudentCount");
     if (!container || !count) return;
 
-    let students = {};
     try {
-        if (isFirebaseConfigured()) {
-            await ensureAdminFirebaseSession();
-            students = (await firebase.database().ref("students").once("value")).val() || {};
-        } else {
-            throw new Error("local mode");
-        }
+        await ensureAdminFirebaseSession();
+        const students = (await firebase.database().ref("students").once("value")).val() || {};
+        const approved = Object.values(students).filter(student => student.status === "approved");
+        count.innerText = `${approved.length} total`;
+        container.innerHTML = approved.length ? approved.map(student => `
+            <div style="padding:14px 0;border-top:1px solid #e5e7eb">
+                <strong>${escapeHTML(student.name)}</strong>
+                <div class="company">${escapeHTML(student.email)} - ${escapeHTML(student.phone)}</div>
+                <div class="company">${escapeHTML(student.branch)} - Roll No: ${escapeHTML(student.rollNumber)}</div>
+            </div>
+        `).join("") : "<p class=\"company\">No approved users yet.</p>";
     } catch (error) {
-        students = getLocalStudentRegistrations();
+        count.innerText = "";
+        container.innerText = getFirebaseErrorMessage(error);
     }
-
-    const approved = Object.values(students).filter(student => student.status === "approved");
-    count.innerText = `${approved.length} total`;
-    container.innerHTML = approved.length ? approved.map(student => `
-        <div style="padding:14px 0;border-top:1px solid #e5e7eb">
-            <strong>${student.name}</strong>
-            <div class="company">${student.email} - ${student.phone}</div>
-            <div class="company">${student.branch} - Roll No: ${student.rollNumber}</div>
-        </div>
-    `).join("") : "<p class=\"company\">No approved users yet.</p>";
 }
 
 async function displayStudentRequests() {
@@ -705,39 +679,23 @@ async function displayStudentRequests() {
         const pending = Object.entries(students).filter(([, student]) => student.status === "pending");
         container.innerHTML = pending.length ? pending.map(([uid, student]) => `
             <div style="padding:14px 0;border-top:1px solid #e5e7eb">
-                <strong>${student.name}</strong>
-                <div class="company">${student.email} - ${student.phone}</div>
-                <div class="company">${student.branch} - Roll No: ${student.rollNumber}</div>
-                <button class="small-primary" style="margin-top:10px" onclick="approveStudent('${uid}')">Accept</button>
-                <button class="danger-btn" style="margin-top:10px" onclick="rejectStudent('${uid}')">Reject</button>
+                <strong>${escapeHTML(student.name)}</strong>
+                <div class="company">${escapeHTML(student.email)} - ${escapeHTML(student.phone)}</div>
+                <div class="company">${escapeHTML(student.branch)} - Roll No: ${escapeHTML(student.rollNumber)}</div>
+                <button class="small-primary" style="margin-top:10px" onclick="approveStudent('${escapeHTML(uid)}')">Accept</button>
+                <button class="danger-btn" style="margin-top:10px" onclick="rejectStudent('${escapeHTML(uid)}')">Reject</button>
             </div>
         `).join("") : "<p class=\"company\">No pending registrations.</p>";
     } catch (error) {
-        const registrations = getLocalStudentRegistrations();
-        const pending = Object.entries(registrations).filter(([, student]) => student.status === "pending");
-        container.innerHTML = pending.length ? pending.map(([uid, student]) => `
-            <div style="padding:14px 0;border-top:1px solid #e5e7eb">
-                <strong>${student.name}</strong>
-                <div class="company">${student.email} - ${student.phone}</div>
-                <div class="company">${student.branch} - Roll No: ${student.rollNumber}</div>
-                <button class="small-primary" style="margin-top:10px" onclick="approveStudent('${uid}')">Accept</button>
-                <button class="danger-btn" style="margin-top:10px" onclick="rejectStudent('${uid}')">Reject</button>
-            </div>
-        `).join("") : "<p class=\"company\">No pending registrations.</p>";
+        container.innerText = getFirebaseErrorMessage(error);
     }
 }
 
 async function approveStudent(uid) {
     const container = document.getElementById("studentRequestList");
     try {
-        if (uid.startsWith("local-")) {
-            const registrations = getLocalStudentRegistrations();
-            registrations[uid].status = "approved";
-            localStorage.setItem("studentRegistrations", JSON.stringify(registrations));
-        } else {
-            await ensureAdminFirebaseSession();
-            await firebase.database().ref(`students/${uid}/status`).set("approved");
-        }
+        await ensureAdminFirebaseSession();
+        await firebase.database().ref(`students/${uid}/status`).set("approved");
         await displayStudentRequests();
         await displayApprovedStudents();
     } catch (error) {
@@ -749,14 +707,8 @@ async function rejectStudent(uid) {
     if (!confirm("Reject this registration?")) return;
     const container = document.getElementById("studentRequestList");
     try {
-        if (uid.startsWith("local-")) {
-            const registrations = getLocalStudentRegistrations();
-            delete registrations[uid];
-            localStorage.setItem("studentRegistrations", JSON.stringify(registrations));
-        } else {
-            await ensureAdminFirebaseSession();
-            await firebase.database().ref(`students/${uid}`).remove();
-        }
+        await ensureAdminFirebaseSession();
+        await firebase.database().ref(`students/${uid}`).remove();
         await displayStudentRequests();
         await displayApprovedStudents();
     } catch (error) {
@@ -798,19 +750,23 @@ function updateHomeStats() {
 function displayFeatured() {
     const container = document.getElementById("featuredContainer");
     if (!container) return;
-    container.innerHTML = "";
+    container.innerHTML = internships.length
+        ? ""
+        : "<p class=\"company\">No live internships are synced yet.</p>";
+    if (!internships.length) return;
 
-    internships.slice(0, 5).forEach(internship => {
+    sortIndiaFirst(internships).slice(0, 5).forEach(internship => {
         const card = document.createElement("div");
         card.className = "feature-card";
+        const workMode = hasPublishedValue(internship.type) ? internship.type : "Work mode not listed";
         card.innerHTML = `
             <div style="font-size:30px">🚀</div>
-            <h3>${internship.title}</h3>
-            <div class="company">${internship.company}</div>
-            <div class="feature-info">📍 ${internship.location}</div>
-            <div class="feature-info">💰 ${internship.stipend}</div>
-            <div class="feature-info">${internship.type === "Online" ? "🌐 Online" : "🏢 Offline"}</div>
-            <button onclick="showDetails(${internship.id})">View Internship</button>
+            <h3>${escapeHTML(internship.title)}</h3>
+            <div class="company">${escapeHTML(internship.company)}</div>
+            ${hasPublishedValue(internship.location) ? `<div class="feature-info">📍 ${escapeHTML(internship.location)}</div>` : ""}
+            ${hasPublishedValue(internship.stipend) ? `<div class="feature-info">💰 ${escapeHTML(internship.stipend)}</div>` : ""}
+            <div class="feature-info">${escapeHTML(workMode)}</div>
+            <button onclick="showDetails(${Number(internship.id)})">View Internship</button>
         `;
         container.appendChild(card);
     });
@@ -823,48 +779,66 @@ function displayInternships() {
     const container = document.getElementById("internshipContainer");
     if (!container) return;
 
-    const search = document.getElementById("searchInput").value.toLowerCase();
+    const search = document.getElementById("searchInput").value.trim().toLowerCase();
+    const filtered = sortIndiaFirst(internships).filter(internship => {
+        const skills = Array.isArray(internship.skills) ? internship.skills.join(" ") : "";
+        return [
+            internship.title,
+            internship.company,
+            internship.specialization,
+            internship.location,
+            internship.branch,
+            internship.type,
+            isIndiaBasedListing(internship) ? "India" : "",
+            skills
+        ]
+            .some(value => String(value || "").toLowerCase().includes(search));
+    });
 
-    const filtered = internships.filter(i =>
-        i.title.toLowerCase().includes(search) ||
-        i.company.toLowerCase().includes(search) ||
-        i.specialization.toLowerCase().includes(search) ||
-        i.skills.join(" ").toLowerCase().includes(search)
-    );
-
-    let html = "";
-    filtered.forEach(internship => { html += createCard(internship); });
-    container.innerHTML = html;
+    container.innerHTML = filtered.length
+        ? filtered.map(createCard).join("")
+        : internships.length
+            ? "<p class=\"company\">No internships match your search.</p>"
+            : "<p class=\"company\">No current internships are synced yet. Please check back after the next feed update.</p>";
 }
 
 /* =========================================================
    CREATE CARD
 ========================================================= */
 function createCard(internship) {
+    const internshipId = Number(internship.id);
+    const safeId = Number.isSafeInteger(internshipId) ? internshipId : "null";
+    const tags = [
+        hasPublishedValue(internship.specialization) && internship.specialization !== "General"
+            ? `<span class="tag">${escapeHTML(internship.specialization)}</span>` : "",
+        hasPublishedValue(internship.type)
+            ? `<span class="tag">${escapeHTML(internship.type)}</span>` : "",
+        isIndiaBasedListing(internship) ? "<span class=\"tag india-tag\">India</span>" : ""
+    ].filter(Boolean).join("");
+    const details = [
+        ["📍", internship.location],
+        ["💰", internship.stipend],
+        ["⏱️", internship.duration]
+    ].filter(([, value]) => hasPublishedValue(value));
     return `
         <div class="card">
             <div class="card-top">
                 <div class="company-logo">💼</div>
-                <button class="bookmark" onclick="bookmark(${internship.id})"
-                        title="Save internship" aria-label="Save ${internship.title}">
-                    ${bookmarks.includes(internship.id) ? "♥" : "♡"}
+                <button class="bookmark" onclick="bookmark(${safeId})"
+                        title="Save internship" aria-label="Save ${escapeHTML(internship.title)}">
+                    ${bookmarks.some(bookmarkId => String(bookmarkId) === String(internship.id)) ? "♥" : "♡"}
                 </button>
             </div>
-            <h3>${internship.title}</h3>
-            <div class="company">${internship.company}</div>
-            <div class="tags">
-                <span class="tag">${internship.specialization}</span>
-                <span class="tag">${internship.type}</span>
-            </div>
+            <h3>${escapeHTML(internship.title)}</h3>
+            <div class="company">${escapeHTML(internship.company)}</div>
+            ${tags ? `<div class="tags">${tags}</div>` : ""}
             <div class="details">
-                <div>📍 ${internship.location}</div>
-                <div>💰 ${internship.stipend}</div>
-                <div>⏱️ ${internship.duration}</div>
-                ${internship.postedDate ? `<div>🗓 Posted: ${internship.postedDate}</div>` : ""}
+                ${details.map(([icon, value]) => `<div>${icon} ${escapeHTML(value)}</div>`).join("")}
+                ${internship.postedDate ? `<div>🗓 Posted: ${escapeHTML(internship.postedDate)}</div>` : ""}
             </div>
             <div class="card-actions">
-                <button class="secondary-btn" onclick="showDetails(${internship.id})">Details</button>
-                <button class="small-primary" onclick="apply(${internship.id})">Apply</button>
+                <button class="secondary-btn" onclick="showDetails(${safeId})">Details</button>
+                <button class="small-primary" onclick="apply(${safeId})">Apply</button>
             </div>
         </div>
     `;
@@ -879,8 +853,10 @@ function selectType(type) {
     selectedType = type;
     document.getElementById("onlineChoice").classList.remove("selected");
     document.getElementById("offlineChoice").classList.remove("selected");
-    if (type === "Online") document.getElementById("onlineChoice").classList.add("selected");
-    else document.getElementById("offlineChoice").classList.add("selected");
+    document.getElementById("onlineChoice").classList.toggle("selected", type === "Online");
+    document.getElementById("offlineChoice").classList.toggle("selected", type === "Offline");
+    document.getElementById("onlineChoice").setAttribute("aria-pressed", String(type === "Online"));
+    document.getElementById("offlineChoice").setAttribute("aria-pressed", String(type === "Offline"));
 }
 
 /* =========================================================
@@ -891,50 +867,59 @@ function findMatches() {
     const specialization = document.getElementById("specialization").value;
     const skills = document.getElementById("skills").value.toLowerCase();
     const location = document.getElementById("location").value.toLowerCase();
-    const graduation = document.getElementById("graduation").value;
+    const userSkills = [...new Set(skills.split(",").map(skill => skill.trim()).filter(Boolean))];
 
     let results = internships.map(internship => {
         let score = 0;
         if (internship.type === selectedType) score += 35;
-        if (branch && internship.branch === branch) score += 25;
-        if (specialization && internship.specialization === specialization) score += 30;
-        if (location && internship.location.toLowerCase().includes(location)) score += 10;
-        if (graduation) score += 5;
+        if (branch && String(internship.branch || "").toLowerCase() === branch.toLowerCase()) score += 25;
+        if (specialization && String(internship.specialization || "").toLowerCase() === specialization.toLowerCase()) score += 30;
+        if (location && String(internship.location || "").toLowerCase().includes(location)) score += 10;
 
-        if (skills) {
-            const userSkills = skills.split(",").map(s => s.trim());
-            userSkills.forEach(skill => {
-                if (internship.skills.join(" ").toLowerCase().includes(skill)) score += 5;
-            });
-        }
+        const internshipSkills = Array.isArray(internship.skills)
+            ? internship.skills.map(skill => String(skill).trim().toLowerCase())
+            : [];
+        userSkills.forEach(skill => {
+            if (internshipSkills.includes(skill.toLowerCase())) score += 5;
+        });
         return { ...internship, score: Math.min(score, 100) };
     });
 
-    results.sort((a, b) => b.score - a.score);
+    results.sort((a, b) =>
+        Number(isIndiaBasedListing(b)) - Number(isIndiaBasedListing(a)) || b.score - a.score
+    );
 
     const container = document.getElementById("resultsContainer");
     let html = "";
     results.forEach(internship => {
+        const internshipId = Number(internship.id);
+        const safeId = Number.isSafeInteger(internshipId) ? internshipId : "null";
+        const tags = [
+            hasPublishedValue(internship.specialization) && internship.specialization !== "General"
+                ? `<span class="tag">${escapeHTML(internship.specialization)}</span>` : "",
+            hasPublishedValue(internship.type) ? `<span class="tag">${escapeHTML(internship.type)}</span>` : "",
+            isIndiaBasedListing(internship) ? "<span class=\"tag india-tag\">India</span>" : ""
+        ].filter(Boolean).join("");
+        const details = [
+            ["📍", internship.location],
+            ["💰", internship.stipend],
+            ["⏱️", internship.duration]
+        ].filter(([, value]) => hasPublishedValue(value));
         html += `
             <div class="card">
                 <div class="card-top">
                     <div class="company-logo">🤖</div>
                     <strong style="color:#16a34a">${internship.score}% Match</strong>
                 </div>
-                <h3>${internship.title}</h3>
-                <div class="company">${internship.company}</div>
-                <div class="tags">
-                    <span class="tag">${internship.type}</span>
-                    <span class="tag">${internship.specialization}</span>
-                </div>
+                <h3>${escapeHTML(internship.title)}</h3>
+                <div class="company">${escapeHTML(internship.company)}</div>
+                ${tags ? `<div class="tags">${tags}</div>` : ""}
                 <div class="details">
-                    <div>📍 ${internship.location}</div>
-                    <div>💰 ${internship.stipend}</div>
-                    <div>⏱️ ${internship.duration}</div>
+                    ${details.map(([icon, value]) => `<div>${icon} ${escapeHTML(value)}</div>`).join("")}
                 </div>
                 <div class="card-actions">
-                    <button class="secondary-btn" onclick="showDetails(${internship.id})">Details</button>
-                    <button class="small-primary" onclick="apply(${internship.id})">Apply</button>
+                    <button class="secondary-btn" onclick="showDetails(${safeId})">Details</button>
+                    <button class="small-primary" onclick="apply(${safeId})">Apply</button>
                 </div>
             </div>
         `;
@@ -949,47 +934,100 @@ function findMatches() {
 /* =========================================================
    MODAL
 ========================================================= */
+let lastModalTrigger = null;
+
 function showDetails(id) {
-    const internship = internships.find(i => i.id === id);
+    const internship = findInternshipById(id);
+    if (!internship) return;
     const modal = document.getElementById("detailsModal");
     const body = document.getElementById("modalBody");
+    const skills = Array.isArray(internship.skills) ? internship.skills.filter(hasPublishedValue) : [];
+    const applicationUrl = getSafeApplicationUrl(internship.link);
+    const overviewFields = [
+        ["Location", internship.location],
+        ["Work arrangement", internship.type],
+        ["Branch eligibility", internship.branch === "All branches" ? "" : internship.branch],
+        ["Stipend", internship.stipend],
+        ["Duration", internship.duration],
+        ["Skills", skills.join(", ")],
+        ["Posted", internship.postedDate],
+        ["Application closes", internship.closingDate]
+    ].filter(([, value]) => hasPublishedValue(value));
+    const detailTags = [
+        hasPublishedValue(internship.specialization) && internship.specialization !== "General" ? internship.specialization : "",
+        isIndiaBasedListing(internship) ? "India" : ""
+    ].filter(Boolean);
+    const description = getCachedRoleDescription(internship.description) ||
+        "The employer feed does not include a role description. Open the original posting for responsibilities and requirements.";
+    lastModalTrigger = document.activeElement;
 
     body.innerHTML = `
-        <div style="font-size:45px">💼</div>
-        <h2 style="margin-top:15px">${internship.title}</h2>
-        <p style="color:#64748b;margin:8px 0 25px">${internship.company}</p>
-        <div class="tags">
-            <span class="tag">${internship.type}</span>
-            <span class="tag">${internship.specialization}</span>
-            <span class="tag">${internship.branch}</span>
-        </div>
-        <h3 style="margin-top:25px">Internship Details</h3>
-        <div class="details" style="margin-top:15px">
-            <div>📍 Location: <strong>${internship.location}</strong></div>
-            <div>💰 Stipend: <strong>${internship.stipend}</strong></div>
-            <div>⏱️ Duration: <strong>${internship.duration}</strong></div>
-            <div>🧠 Skills: <strong>${internship.skills.join(", ")}</strong></div>
-        </div>
-        <h3 style="margin-top:25px">About the Internship</h3>
-        <p style="color:#64748b;line-height:1.7;margin-top:10px">${internship.description}</p>
-        <button class="primary-btn" style="width:100%;margin-top:25px" onclick="apply(${internship.id})">
-            Apply Now →
-        </button>
+        <article class="internship-detail">
+            <header class="detail-heading">
+                <div class="detail-company-mark" aria-hidden="true">${escapeHTML((internship.company || "I").charAt(0).toUpperCase())}</div>
+                <p class="detail-company">${escapeHTML(internship.company || "Company not specified")}</p>
+                <h2 id="modalTitle">${escapeHTML(internship.title || "Internship")}</h2>
+                ${detailTags.length ? `<div class="detail-tags">${detailTags.map(tag => `<span>${escapeHTML(tag)}</span>`).join("")}</div>` : ""}
+            </header>
+            <section class="detail-section" aria-labelledby="detail-overview-title">
+                <h3 id="detail-overview-title">Position overview</h3>
+                <dl class="detail-grid">
+                    ${overviewFields.map(([label, value]) => `<div class="${label === "Skills" ? "detail-grid-wide" : ""}"><dt>${label}</dt><dd>${escapeHTML(value)}</dd></div>`).join("")}
+                </dl>
+            </section>
+            <section class="detail-section detail-about" aria-labelledby="detail-about-title">
+                <h3 id="detail-about-title">About this internship</h3>
+                <p>${escapeHTML(description)}</p>
+            </section>
+            <footer class="detail-actions">
+                ${applicationUrl
+                    ? `<a class="primary-btn detail-apply" href="${escapeHTML(applicationUrl)}" target="_blank" rel="noopener noreferrer">Open application <span aria-hidden="true">↗</span></a>`
+                    : "<p class=\"detail-no-link\">An application link is not available for this listing.</p>"}
+            </footer>
+        </article>
     `;
     modal.classList.add("show");
+    modal.querySelector(".close").focus();
 }
 
 function closeModal() {
-    document.getElementById("detailsModal").classList.remove("show");
+    const modal = document.getElementById("detailsModal");
+    modal.classList.remove("show");
+    if (lastModalTrigger && lastModalTrigger.isConnected) lastModalTrigger.focus();
 }
+
+document.getElementById("detailsModal").addEventListener("click", event => {
+    if (event.target === event.currentTarget) closeModal();
+});
+
+document.addEventListener("keydown", event => {
+    const modal = document.getElementById("detailsModal");
+    if (!modal.classList.contains("show")) return;
+    if (event.key === "Escape") {
+        closeModal();
+        return;
+    }
+    if (event.key !== "Tab") return;
+
+    const focusable = [...modal.querySelectorAll("button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex='-1'])")];
+    if (!focusable.length) return;
+    if (event.shiftKey && document.activeElement === focusable[0]) {
+        event.preventDefault();
+        focusable[focusable.length - 1].focus();
+    } else if (!event.shiftKey && document.activeElement === focusable[focusable.length - 1]) {
+        event.preventDefault();
+        focusable[0].focus();
+    }
+});
 
 /* =========================================================
    APPLY
 ========================================================= */
 function apply(id) {
-    const internship = internships.find(i => i.id === id);
-    if (internship.link && internship.link !== "#") {
-        window.open(internship.link, "_blank");
+    const internship = findInternshipById(id);
+    const applicationUrl = internship && getSafeApplicationUrl(internship.link);
+    if (applicationUrl) {
+        window.open(applicationUrl, "_blank", "noopener,noreferrer");
     } else {
         alert("Application link will be added by the administrator.");
     }
@@ -999,9 +1037,12 @@ function apply(id) {
    BOOKMARK
 ========================================================= */
 function bookmark(id) {
-    if (bookmarks.includes(id)) bookmarks = bookmarks.filter(b => b !== id);
+    if (bookmarks.some(bookmarkId => String(bookmarkId) === String(id))) {
+        bookmarks = bookmarks.filter(bookmarkId => String(bookmarkId) !== String(id));
+    }
     else bookmarks.push(id);
     localStorage.setItem("bookmarks", JSON.stringify(bookmarks));
+    publishInternshipUpdates();
     displayInternships();
 }
 
@@ -1019,26 +1060,31 @@ function addInternship() {
     const duration = document.getElementById("adminDuration").value;
     const closingDate = document.getElementById("adminClosingDate").value;
     const skills = document.getElementById("adminSkills").value.split(",").map(s => s.trim());
-    const link = document.getElementById("adminLink").value;
+    const link = document.getElementById("adminLink").value.trim();
 
-    if (!title || !company || !specialization || !closingDate) {
-        alert("Please enter the internship title, company, specialization and closing date.");
+    if (!title || !company || !specialization || !closingDate || !link) {
+        alert("Please enter the title, company, specialization, closing date and application link.");
         return;
     }
     if (closingDate < getLocalDateString()) {
         alert("The application closing date must be today or later.");
         return;
     }
+    if (!getSafeApplicationUrl(link)) {
+        alert("Application links must use a valid HTTPS address.");
+        return;
+    }
 
     internships.unshift({
         id: Date.now(),
         title, company, type, branch, specialization, closingDate,
+        postedDate: getLocalDateString(),
         location: location || "Not specified",
         stipend: stipend || "Not specified",
         duration: duration || "Not specified",
         skills,
         description: "New internship added by the InternMatch development team.",
-        link: link || "#"
+        link: getSafeApplicationUrl(link)
     });
 
     saveInternships();
@@ -1061,41 +1107,41 @@ function displayAdminInternships() {
     if (!container) return;
 
     count.innerText = `${internships.length} total`;
-    container.innerHTML = internships.map(internship => `
+    container.innerHTML = sortIndiaFirst(internships).map(internship => `
         <div class="card" style="margin-top:15px">
             <div class="card-top">
                 <div>
-                    <h3 style="margin:0 0 6px">${internship.title}</h3>
-                    <div class="company">${internship.company}</div>
+                    <h3 style="margin:0 0 6px">${escapeHTML(internship.title)}</h3>
+                    <div class="company">${escapeHTML(internship.company)}</div>
                 </div>
-                <span class="tag">${internship.type}</span>
+                <span class="tag">${escapeHTML(internship.type)}</span>
             </div>
             <div class="tags">
-                <span class="tag">${internship.branch}</span>
-                <span class="tag">${internship.specialization}</span>
+                <span class="tag">${escapeHTML(internship.branch)}</span>
+                <span class="tag">${escapeHTML(internship.specialization)}</span>
             </div>
             <div class="details">
-                <div>📍 ${internship.location}</div>
-                <div>💰 ${internship.stipend}</div>
-                <div>⏱️ ${internship.duration}</div>
-                <div>🧠 ${internship.skills.join(", ")}</div>
+                <div>📍 ${escapeHTML(internship.location)}</div>
+                <div>💰 ${escapeHTML(internship.stipend)}</div>
+                <div>⏱️ ${escapeHTML(internship.duration)}</div>
+                <div>🧠 ${escapeHTML(Array.isArray(internship.skills) ? internship.skills.join(", ") : "")}</div>
             </div>
-            <p class="company" style="margin-top:15px">${internship.description}</p>
+            <p class="company" style="margin-top:15px">${escapeHTML(internship.description)}</p>
             <div class="card-actions">
-                <button class="secondary-btn" onclick="showDetails(${internship.id})">View Details</button>
-                <button class="danger-btn" onclick="deleteInternship(${internship.id})"
-                        aria-label="Delete ${internship.title}">Delete</button>
+                <button class="secondary-btn" onclick="showDetails(${Number(internship.id)})">View Details</button>
+                <button class="danger-btn" onclick="deleteInternship(${Number(internship.id)})"
+                        aria-label="Delete ${escapeHTML(internship.title)}">Delete</button>
             </div>
         </div>
     `).join("");
 }
 
 function deleteInternship(id) {
-    const internship = internships.find(item => item.id === id);
+    const internship = findInternshipById(id);
     if (!internship || !confirm(`Delete "${internship.title}"?`)) return;
 
-    internships = internships.filter(item => item.id !== id);
-    bookmarks = bookmarks.filter(b => b !== id);
+    internships = internships.filter(item => String(item.id) !== String(id));
+    bookmarks = bookmarks.filter(bookmarkId => String(bookmarkId) !== String(id));
 
     saveInternships();
     localStorage.setItem("bookmarks", JSON.stringify(bookmarks));
@@ -1103,26 +1149,21 @@ function deleteInternship(id) {
 }
 
 /* =========================================================
-   FEATURED AUTO SCROLL
-========================================================= */
-setInterval(() => {
-    const container = document.getElementById("featuredContainer");
-    if (!container) return;
-    container.scrollBy({ left: 330, behavior: "smooth" });
-    if (container.scrollLeft + container.clientWidth >= container.scrollWidth - 20) {
-        container.scrollTo({ left: 0, behavior: "smooth" });
-    }
-}, 3500);
-
-/* =========================================================
    SESSION PERSISTENCE + LOADING ON REFRESH
 ========================================================= */
-window.addEventListener("load", () => {
-    if (getStoredAdminAuthentication()) {
-        showLoader("Restoring your session...");
-        adminAuthenticatedInMemory = true;
+async function restoreFirebaseSession(user) {
+    if (!user) {
+        clearStudentSession();
+        hideLoader();
+        return;
+    }
 
-        setTimeout(() => {
+    showLoader("Restoring your session...");
+    try {
+        const adminSnapshot = await firebase.database().ref(`admins/${user.uid}`).once("value");
+        if (adminSnapshot.val() === true) {
+            setAdminAuthenticated(true);
+            startSharedInternships();
             document.body.classList.remove("auth-locked");
             document.body.classList.add("founder-login");
             document.getElementById("authGate").hidden = true;
@@ -1130,24 +1171,83 @@ window.addEventListener("load", () => {
             document.getElementById("admin").classList.add("active");
             updateAdminView();
             hideLoader();
-        }, 900);
-    } else if (getStoredStudentSession()) {
-        currentStudent = getStoredStudentSession();
+            return;
+        }
+
+        const studentSnapshot = await firebase.database().ref(`students/${user.uid}`).once("value");
+        const student = studentSnapshot.val();
+        if (!student || student.status !== "approved") {
+            clearStudentSession();
+            await firebase.auth().signOut();
+            hideLoader();
+            return;
+        }
+
+        saveStudentSession(student);
         document.body.classList.remove("auth-locked", "founder-login");
         document.getElementById("authGate").hidden = true;
         document.querySelectorAll(".page").forEach(page => page.classList.remove("active"));
         document.getElementById("home").classList.add("active");
+        startSharedInternships();
         updateStudentProfile();
-        hideLoader();
-    } else {
-        hideLoader();
+    } catch (error) {
+        console.error("The saved session could not be verified.", error);
+        clearStudentSession();
+        await firebase.auth().signOut();
     }
+    hideLoader();
+}
+
+window.addEventListener("load", () => {
+    if (isFirebaseConfigured()) {
+        try {
+            ensureFirebase();
+            let unsubscribe = () => {};
+            unsubscribe = firebase.auth().onAuthStateChanged(user => {
+                unsubscribe();
+                restoreFirebaseSession(user);
+            });
+        } catch (error) {
+            console.error("Firebase session restoration failed.", error);
+            hideLoader();
+        }
+        return;
+    }
+
+    hideLoader();
 });
 
 /* =========================================================
    INITIAL RENDER
 ========================================================= */
+Object.assign(window, {
+    addInternship,
+    adminLogin,
+    adminLogout,
+    apply,
+    approveStudent,
+    bookmark,
+    closeModal,
+    deleteInternship,
+    displayInternships,
+    findMatches,
+    openFounderLogin,
+    rejectStudent,
+    registerStudent,
+    resetStudentPassword,
+    returnToStudentLogin,
+    selectType,
+    showDetails,
+    showPage,
+    showRegistration,
+    showStudentLogin,
+    studentLogin,
+    studentLogout,
+    togglePassword
+});
+
 displayFeatured();
 displayInternships();
 displayAdminInternships();
 updateHomeStats();
+publishInternshipUpdates();

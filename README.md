@@ -2,7 +2,7 @@
 
 **A web platform that helps students and graduates discover internships matched to their branch, skills and career goals.**
 
-**Built with:** HTML5 • CSS3 • JavaScript • Firebase • GitHub Pages
+**Built with:** HTML5 • CSS3 • JavaScript • React (chat assistant) • Firebase • Vite • GitHub Pages
 
 🔗 **Live Demo:** https://ratnaprasad17.github.io/jip-project/
 
@@ -21,18 +21,19 @@ This project was built as a student project at **Sri Vasavi Engineering College*
 ### For Students
 - 🔐 **Secure login and registration** with admin approval
 - 🔑 Forgot password and show/hide password options
+- ☼ Persistent light/dark appearance, initialized from the device preference
 - 🔥 **Featured and latest internships** on the home page
+- 💬 **InternMatch assistant** for current listings, follow-up questions, application steps and matching rules
 - 🔎 **Live search** by internship title, skill or company
 - 🎯 **Personalised matching** based on:
   - Internship type (Online / Offline)
   - Branch and specialization
-  - Skills and preferred location
-  - Graduation year
+   - Skills and preferred location
 - 📄 Detailed internship view with stipend, duration, skills and apply link
 - 👤 Student profile page
 
 ### For Admin
-- 👨‍💻 Separate admin login
+- 👨‍💻 Firebase-authenticated admin login with database-enforced access
 - ➕ Publish new internships (title, company, type, branch, stipend, duration, skills, apply link)
 - 🗂️ Manage and remove existing internships
 - ✅ Approve student registrations and view approved users
@@ -43,9 +44,9 @@ This project was built as a student project at **Sri Vasavi Engineering College*
 
 | Layer | Technology |
 |---|---|
-| Frontend | HTML5, CSS3, JavaScript (vanilla) |
+| Frontend | HTML5, CSS3, JavaScript (vanilla), React chatbot, bot-avatars |
 | Authentication & Database | Firebase Authentication, Firebase Realtime Database |
-| Deployment | GitHub Pages with GitHub Actions |
+| Build & Deployment | Vite, GitHub Pages with GitHub Actions |
 
 ---
 
@@ -58,6 +59,8 @@ jip-project/
 ├── index.html           # Main page and all app sections
 ├── style.css            # Styling
 ├── script.js            # App logic (auth, matching, admin, Firebase)
+├── src/chatbot.jsx      # React chatbot with bot-avatars
+├── vite.config.mjs      # Production build configuration
 ├── vasavi-logo.jpg      # College logo
 └── README.md
 ```
@@ -74,14 +77,21 @@ jip-project/
    cd jip-project
    ```
 
-2. **Open the project**
-   - Open `index.html` in your browser, or
-   - Use the **Live Server** extension in VS Code for a better experience.
+2. **Install and run the website**
+   ```bash
+   npm ci
+   npm run dev
+   ```
+   Open the local URL printed by Vite. Use `npm run build` to create the GitHub Pages site in `dist/`.
 
 3. **Firebase setup** (to use your own backend)
    - Create a project in the [Firebase Console](https://console.firebase.google.com/)
    - Enable **Authentication** (Email/Password) and **Realtime Database**
    - Add your Firebase config in `script.js`
+   - Create an admin user under Authentication, then add `/admins/<admin-uid>` as boolean `true` in Realtime Database
+   - Deploy the database access rules with `firebase deploy --only database`
+
+Admin access is never granted by a password in the website source or browser storage. The admin UID must be explicitly allowlisted in Realtime Database, and the deployed rules restrict internship writes and student management to that UID. See [AUTOMATION.md](AUTOMATION.md) for deployment details.
 
 ---
 
@@ -98,9 +108,8 @@ jip-project/
 ## 🔮 Future Improvements
 
 - [ ] Email notifications for new matching internships
-- [ ] Bookmark / save internships
 - [ ] Resume upload for students
-- [ ] Stronger server-side admin security
+- [ ] Admin activity audit log
 - [ ] Advanced filters (stipend range, duration)
 
 ---

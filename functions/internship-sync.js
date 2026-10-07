@@ -1,6 +1,18 @@
 "use strict";
 
+const { parse } = require("node-html-parser");
+const he = require("he");
+
 const INTERNSHIP_TITLE_PATTERN = /\bintern(?:ship)?\b/i;
+const MAX_IMPORTED_AGE_DAYS = 90;
+const LEGACY_SAMPLE_LISTINGS = [
+    { id: 1, title: "Machine Learning Intern", company: "TechNova AI" },
+    { id: 2, title: "Data Science Intern", company: "DataWorks" },
+    { id: 3, title: "Web Development Intern", company: "WebCraft Solutions" },
+    { id: 4, title: "AI Research Intern", company: "FutureAI Labs" },
+    { id: 5, title: "Cyber Security Intern", company: "SecureNet" },
+    { id: 6, title: "Cloud Computing Intern", company: "CloudSphere" }
+];
 const SKILL_NAMES = [
     "Python", "Java", "JavaScript", "TypeScript", "React", "Node.js", "SQL",
     "C++", "C#", "AWS", "Azure", "Docker", "Kubernetes", "TensorFlow",
@@ -8,13 +20,37 @@ const SKILL_NAMES = [
 ];
 
 function cleanText(value, maxLength = 1200) {
-    return String(value || "")
-        .replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi, " ")
-        .replace(/<[^>]*>/g, " ")
-        .replace(/&nbsp;|&#160;/gi, " ")
-        .replace(/\s+/g, " ")
-        .trim()
-        .slice(0, maxLength);
+    const root = parse(he.decode(String(value || "")));
+    root.querySelectorAll("script, style, noscript").forEach(node => node.remove());
+    return getParsedText(root).slice(0, maxLength);
+}
+
+function getParsedText(root) {
+    const blocks = root.querySelectorAll("h1, h2, h3, h4, p, li")
+        .filter(node => node.tagName !== "LI" || !node.querySelector("p"))
+        .map(node => node.text.trim())
+        .filter(Boolean);
+    return (blocks.length ? blocks.join(" ") : root.text).replace(/\s+/g, " ").trim();
+}
+
+function getRoleDescription(value) {
+    const root = parse(he.decode(String(value || "")));
+    root.querySelectorAll("script, style, noscript").forEach(node => node.remove());
+
+    const roleHeading = root.querySelectorAll("h1, h2, h3").find(node =>
+        /^(what you['’]ll do|responsibilities|the role|role overview|about (this )?(role|position|internship))$/i
+            .test(node.text.trim())
+    );
+    if (roleHeading) {
+        let firstRoleNode = roleHeading;
+        while (firstRoleNode.parentNode && firstRoleNode.parentNode !== root) {
+            firstRoleNode = firstRoleNode.parentNode;
+        }
+        const startIndex = root.childNodes.indexOf(firstRoleNode);
+        if (startIndex > 0) root.childNodes.slice(0, startIndex).forEach(node => node.remove());
+    }
+
+    return getParsedText(root).slice(0, 4000);
 }
 
 function safeHttpsUrl(value) {
@@ -24,6 +60,20 @@ function safeHttpsUrl(value) {
     } catch (error) {
         return "";
     }
+}
+
+function safeOfficialApplicationUrl(provider, value) {
+    const safeUrl = safeHttpsUrl(value);
+    if (!safeUrl) return "";
+
+    const host = new URL(safeUrl).hostname.toLowerCase();
+    const approvedHosts = provider === "greenhouse"
+        ? ["boards.greenhouse.io", "job-boards.greenhouse.io", "stripe.com"]
+        : provider === "lever"
+            ? ["jobs.lever.co", "jobs.eu.lever.co"]
+            : [];
+
+    return approvedHosts.includes(host) ? safeUrl : "";
 }
 
 function getSpecialization(text) {
@@ -40,6 +90,14 @@ function getSpecialization(text) {
     ];
     const match = categories.find(([, pattern]) => pattern.test(normalized));
     return match ? match[0] : "General";
+}
+
+function getWorkType(location) {
+    const text = String(location || "").toLowerCase();
+    if (/remote|work from home|anywhere|virtual/.test(text)) return "Online";
+    if (/hybrid/.test(text)) return "Hybrid";
+    if (/on[- ]site|onsite|in[- ]person|office[- ]based/.test(text)) return "Offline";
+    return "Not specified";
 }
 
 function getSkills(text) {
@@ -69,6 +127,18 @@ function getPostedDate(posting) {
     return parsedDate.toISOString().slice(0, 10);
 }
 
+function isStaleImportedInternship(internship, today) {
+    if (internship.closingDate && internship.closingDate < today) return true;
+    if (!internship._sourceKey && LEGACY_SAMPLE_LISTINGS.some(sample =>
+        internship.id === sample.id && internship.title === sample.title && internship.company === sample.company
+    )) return true;
+    if (!internship._sourceKey || !internship.postedDate) return false;
+
+    const cutoff = new Date(`${today}T00:00:00.000Z`);
+    cutoff.setUTCDate(cutoff.getUTCDate() - MAX_IMPORTED_AGE_DAYS);
+    return internship.postedDate < cutoff.toISOString().slice(0, 10);
+}
+
 function stableInternshipId(sourceKey, postingId) {
     const value = `${sourceKey}:${postingId}`;
     let hash = 2166136261;
@@ -81,10 +151,10 @@ function stableInternshipId(sourceKey, postingId) {
 
 function normalizePosting(source, posting, fields) {
     const title = cleanText(fields.title, 180);
-    const description = cleanText(fields.description, 1200);
+    const description = getRoleDescription(fields.description);
     if (!title || !INTERNSHIP_TITLE_PATTERN.test(title)) return null;
 
-    const applicationLink = safeHttpsUrl(fields.applicationLink);
+    const applicationLink = safeOfficialApplicationUrl(fields.provider, fields.applicationLink);
     if (!applicationLink) return null;
 
     const location = cleanText(fields.location, 120) || "Not specified";
@@ -96,8 +166,8 @@ function normalizePosting(source, posting, fields) {
         id: stableInternshipId(source.key, postingId),
         title,
         company: cleanText(source.company, 120) || "Company",
-        type: /remote|work from home|anywhere/i.test(location) ? "Online" : "Offline",
-        branch: "All branches",
+        type: getWorkType(location),
+        branch: "Not specified",
         specialization: getSpecialization(searchableText),
         location,
         stipend: getStipend(searchableText),
@@ -120,6 +190,7 @@ function normalizePosting(source, posting, fields) {
 
 function normalizeGreenhouseJobs(source, jobs) {
     return jobs.map(job => normalizePosting(source, job, {
+        provider: "greenhouse",
         id: job.id,
         title: job.title,
         description: job.content,
@@ -131,6 +202,7 @@ function normalizeGreenhouseJobs(source, jobs) {
 
 function normalizeLeverPostings(source, postings) {
     return postings.map(posting => normalizePosting(source, posting, {
+        provider: "lever",
         id: posting.id,
         title: posting.text,
         description: posting.descriptionPlain || posting.description,
@@ -157,7 +229,7 @@ async function fetchSource(source, fetchImpl = fetch) {
 
     const response = await fetchImpl(endpoint, {
         headers: { "User-Agent": "InternMatch internship feed importer" },
-        signal: AbortSignal.timeout(15000)
+        signal: AbortSignal.timeout(45000)
     });
     if (!response.ok) throw new Error(`${source.provider} returned HTTP ${response.status}.`);
 
@@ -181,7 +253,7 @@ function reconcileInternships(existing, sourceResults, today) {
     });
 
     const merged = current.filter(internship => {
-        if (internship.closingDate && internship.closingDate < today) return false;
+        if (isStaleImportedInternship(internship, today)) return false;
         if (!internship._sourceKey) return true;
         if (failedSources.has(internship._sourceKey)) return true;
         return !successfulSources.has(internship._sourceKey);
@@ -189,7 +261,7 @@ function reconcileInternships(existing, sourceResults, today) {
 
     successfulSources.forEach(imported => {
         imported.forEach(internship => {
-            if (!internship.closingDate || internship.closingDate >= today) merged.push(internship);
+            if (!isStaleImportedInternship(internship, today)) merged.push(internship);
         });
     });
 
