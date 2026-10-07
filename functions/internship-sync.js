@@ -5,6 +5,22 @@ const he = require("he");
 
 const INTERNSHIP_TITLE_PATTERN = /\bintern(?:ship)?\b/i;
 const MAX_IMPORTED_AGE_DAYS = 90;
+const MAX_PUBLISHED_INTERNSHIPS = 500;
+const INDIA_CITY_PATTERN = /\b(?:bengaluru|bangalore|hyderabad|mumbai|pune|chennai|gurugram|gurgaon|noida|new delhi|delhi|kolkata|ahmedabad|jaipur|kochi|cochin|thiruvananthapuram|visakhapatnam|vizag|lucknow|indore|bhubaneswar|mysuru|mysore|mangaluru|mangalore|coimbatore|nagpur|chandigarh|surat|vadodara|bhopal|patna|kanpur|ghaziabad|dehradun|goa)\b/i;
+
+function isIndiaBasedInternship(internship) {
+    const location = String(internship.location || "");
+    return /\bindia\b/i.test(location) || INDIA_CITY_PATTERN.test(location);
+}
+
+function sortIndiaFirstInternships(listings) {
+    return [...listings].sort((left, right) => {
+        const indiaOrder = Number(isIndiaBasedInternship(right)) - Number(isIndiaBasedInternship(left));
+        if (indiaOrder) return indiaOrder;
+        return String(right.postedDate || "").localeCompare(String(left.postedDate || ""));
+    });
+}
+
 const LEGACY_SAMPLE_LISTINGS = [
     { id: 1, title: "Machine Learning Intern", company: "TechNova AI" },
     { id: 2, title: "Data Science Intern", company: "DataWorks" },
@@ -68,7 +84,7 @@ function safeOfficialApplicationUrl(provider, value, sourceHosts = []) {
 
     const host = new URL(safeUrl).hostname.toLowerCase();
     const approvedHosts = provider === "greenhouse"
-        ? ["boards.greenhouse.io", "job-boards.greenhouse.io", "stripe.com"]
+        ? ["boards.greenhouse.io", "job-boards.greenhouse.io", "job-boards.eu.greenhouse.io", "stripe.com"]
         : provider === "lever"
             ? ["jobs.lever.co", "jobs.eu.lever.co"]
             : provider === "ashby"
@@ -282,7 +298,18 @@ function reconcileInternships(existing, sourceResults, today) {
         });
     });
 
-    return merged;
+    const deduplicated = [];
+    const seenIds = new Set();
+    for (const item of merged) {
+        const idKey = String(item.id || `${item._sourceKey}:${item._sourceId}`);
+        if (!seenIds.has(idKey)) {
+            seenIds.add(idKey);
+            deduplicated.push(item);
+        }
+    }
+
+    const sorted = sortIndiaFirstInternships(deduplicated);
+    return sorted.slice(0, MAX_PUBLISHED_INTERNSHIPS);
 }
 
 function getDateInTimeZone(date = new Date(), timeZone = "Asia/Kolkata") {
@@ -297,12 +324,15 @@ function getDateInTimeZone(date = new Date(), timeZone = "Asia/Kolkata") {
 }
 
 module.exports = {
+    MAX_PUBLISHED_INTERNSHIPS,
     fetchSource,
     getDateInTimeZone,
     getPostedDate,
+    isIndiaBasedInternship,
     normalizeAshbyPostings,
     normalizeGreenhouseJobs,
     normalizeLeverPostings,
     reconcileInternships,
+    sortIndiaFirstInternships,
     stableInternshipId
 };

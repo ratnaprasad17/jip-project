@@ -19,7 +19,7 @@ const source = { key: "sample-company", company: "Sample Company" };
 test("configured internship feeds have unique keys and complete source metadata", () => {
     assert.equal(new Set(sources.map(item => item.key)).size, sources.length);
     assert.ok(sources.every(item => item.key && item.company && item.board && ["greenhouse", "lever", "ashby"].includes(item.provider)));
-    assert.equal(sources.length, 26);
+    assert.equal(sources.length, 46);
 });
 
 test("service account validation fails clearly for missing or invalid secrets", () => {

@@ -10,7 +10,7 @@ const LEGACY_DEMO_LISTINGS = [
     { id: 5, title: "Cyber Security Intern", company: "SecureNet" },
     { id: 6, title: "Cloud Computing Intern", company: "CloudSphere" }
 ];
-const INDIA_CITY_PATTERN = /\b(?:bengaluru|bangalore|hyderabad|mumbai|pune|chennai|gurugram|gurgaon|noida|new delhi|delhi|kolkata|ahmedabad|jaipur|kochi|cochin|thiruvananthapuram|visakhapatnam|vizag|lucknow|indore|bhubaneswar|mysuru|mysore|mangaluru|mangalore)\b/i;
+const INDIA_CITY_PATTERN = /\b(?:bengaluru|bangalore|hyderabad|mumbai|pune|chennai|gurugram|gurgaon|noida|new delhi|delhi|kolkata|ahmedabad|jaipur|kochi|cochin|thiruvananthapuram|visakhapatnam|vizag|lucknow|indore|bhubaneswar|mysuru|mysore|mangaluru|mangalore|coimbatore|nagpur|chandigarh|surat|vadodara|bhopal|patna|kanpur|ghaziabad|dehradun|goa)\b/i;
 
 function isIndiaBasedListing(internship) {
     const location = String(internship.location || "");
@@ -128,6 +128,15 @@ const FIREBASE_CONFIG = {
 
 let firebaseInternshipRef = null;
 let currentStudent = null;
+try {
+    const cachedStudent = window.__PRELOADED_STUDENT__ || JSON.parse(localStorage.getItem("studentSession"));
+    if (cachedStudent && cachedStudent.status === "approved") {
+        currentStudent = cachedStudent;
+        document.body?.classList.remove("auth-locked");
+    }
+} catch (error) {
+    currentStudent = null;
+}
 
 function escapeHTML(value) {
     return String(value ?? "").replace(/[&<>"']/g, character => ({
@@ -160,11 +169,18 @@ function findInternshipById(id) {
 
 function saveStudentSession(student) {
     currentStudent = student;
+    try {
+        localStorage.setItem("studentSession", JSON.stringify(student));
+    } catch (error) {
+        console.warn("Could not save student session locally.", error);
+    }
 }
 
 function clearStudentSession() {
     currentStudent = null;
-    localStorage.removeItem("studentSession");
+    try {
+        localStorage.removeItem("studentSession");
+    } catch (error) {}
 }
 
 function updateStudentProfile() {
@@ -579,6 +595,9 @@ function startSharedInternships() {
     if (firebaseInternshipRef) return;
     try {
         ensureFirebase();
+        listenToMetadata();
+        loadApplicationsFromFirebase();
+        loadReferrals();
         firebaseInternshipRef = firebase.database().ref("internships");
         firebaseInternshipRef.on("value", snapshot => {
             const sharedInternships = snapshot.val();
@@ -749,6 +768,8 @@ async function displayStudentRequests() {
         const snapshot = await firebase.database().ref("students").once("value");
         const students = snapshot.val() || {};
         const pending = Object.entries(students).filter(([, student]) => student.status === "pending");
+        const tabPendingCount = document.getElementById("adminTabPendingCount");
+        if (tabPendingCount) tabPendingCount.innerText = String(pending.length);
         container.innerHTML = pending.length ? pending.map(([uid, student]) => `
             <div style="padding:14px 0;border-top:1px solid #e5e7eb">
                 <strong>${escapeHTML(student.name)}</strong>
@@ -793,7 +814,8 @@ async function rejectStudent(uid) {
 ========================================================= */
 function showPage(pageId) {
     document.querySelectorAll(".page").forEach(page => page.classList.remove("active"));
-    document.getElementById(pageId).classList.add("active");
+    const targetPage = document.getElementById(pageId);
+    if (targetPage) targetPage.classList.add("active");
     window.scrollTo({ top: 0, behavior: "smooth" });
 
     if (pageId === "home") {
@@ -802,6 +824,9 @@ function showPage(pageId) {
         updateHomeStats();
     }
     if (pageId === "favorites") displaySavedInternships();
+    if (pageId === "tracker") renderTrackerPage();
+    if (pageId === "insights") renderInsightsDashboard();
+    if (pageId === "referrals") renderReferrals();
     if (pageId === "admin") {
         updateAdminView();
     }
@@ -815,6 +840,7 @@ function updateHomeStats() {
     const onlineCount = document.getElementById("onlineCount");
     if (count) count.innerText = internships.length;
     if (onlineCount) onlineCount.innerText = internships.filter(i => i.type === "Online").length;
+    listenToMetadata();
 }
 
 /* =========================================================
@@ -848,32 +874,99 @@ function displayFeatured() {
 }
 
 /* =========================================================
-   DISPLAY ALL INTERNSHIPS
+   DISPLAY ALL INTERNSHIPS (WITH ADVANCED FILTER BAR)
 ========================================================= */
+function clearInternshipFilters() {
+    const searchInput = document.getElementById("searchInput");
+    const workType = document.getElementById("filterWorkType");
+    const loc = document.getElementById("filterLocation");
+    const branch = document.getElementById("filterBranch");
+    const sort = document.getElementById("filterSort");
+    if (searchInput) searchInput.value = "";
+    if (workType) workType.value = "all";
+    if (loc) loc.value = "all";
+    if (branch) branch.value = "all";
+    if (sort) sort.value = "india_first";
+    displayInternships();
+}
+
 function displayInternships() {
     const container = document.getElementById("internshipContainer");
     if (!container) return;
 
-    const search = document.getElementById("searchInput").value.trim().toLowerCase();
-    const filtered = sortIndiaFirst(internships).filter(internship => {
-        const skills = Array.isArray(internship.skills) ? internship.skills.join(" ") : "";
-        return [
-            internship.title,
-            internship.company,
-            internship.specialization,
-            internship.location,
-            internship.branch,
-            internship.type,
-            isIndiaBasedListing(internship) ? "India" : "",
-            skills
-        ]
-            .some(value => String(value || "").toLowerCase().includes(search));
+    const search = (document.getElementById("searchInput")?.value || "").trim().toLowerCase();
+    const workTypeFilter = document.getElementById("filterWorkType")?.value || "all";
+    const locationFilter = document.getElementById("filterLocation")?.value || "all";
+    const branchFilter = document.getElementById("filterBranch")?.value || "all";
+    const sortFilter = document.getElementById("filterSort")?.value || "india_first";
+
+    let filtered = internships.filter(internship => {
+        // Search filter
+        if (search) {
+            const skills = Array.isArray(internship.skills) ? internship.skills.join(" ") : "";
+            const matchedSearch = [
+                internship.title,
+                internship.company,
+                internship.specialization,
+                internship.location,
+                internship.branch,
+                internship.type,
+                isIndiaBasedListing(internship) ? "India" : "",
+                skills
+            ].some(value => String(value || "").toLowerCase().includes(search));
+            if (!matchedSearch) return false;
+        }
+
+        // Work mode filter
+        if (workTypeFilter !== "all") {
+            const curType = String(internship.type || "").toLowerCase();
+            if (workTypeFilter.toLowerCase() !== curType) return false;
+        }
+
+        // Location filter
+        if (locationFilter !== "all") {
+            const isIndia = isIndiaBasedListing(internship);
+            const locText = String(internship.location || "").toLowerCase();
+            if (locationFilter === "india" && !isIndia) return false;
+            if (locationFilter === "global" && isIndia) return false;
+            if (locationFilter === "remote" && !/remote|online|virtual|anywhere/.test(locText) && internship.type !== "Online") return false;
+            if (["bengaluru", "hyderabad", "pune", "mumbai", "delhi"].includes(locationFilter)) {
+                if (!locText.includes(locationFilter) && !locText.includes(locationFilter === "bengaluru" ? "bangalore" : "")) return false;
+            }
+        }
+
+        // Branch filter
+        if (branchFilter !== "all") {
+            const branchText = String(internship.branch || "").toLowerCase();
+            const targetBranch = branchFilter.toLowerCase();
+            if (branchText !== "all branches" && !branchText.includes(targetBranch) && !String(internship.specialization || "").toLowerCase().includes(targetBranch)) {
+                return false;
+            }
+        }
+
+        return true;
     });
+
+    // Sorting
+    if (sortFilter === "india_first") {
+        filtered = sortIndiaFirst(filtered);
+    } else if (sortFilter === "newest") {
+        filtered.sort((a, b) => String(b.postedDate || "").localeCompare(String(a.postedDate || "")));
+    } else if (sortFilter === "title_asc") {
+        filtered.sort((a, b) => String(a.title || "").localeCompare(String(b.title || "")));
+    } else if (sortFilter === "company_asc") {
+        filtered.sort((a, b) => String(a.company || "").localeCompare(String(b.company || "")));
+    }
+
+    const statusText = document.getElementById("filterStatusText");
+    if (statusText) {
+        statusText.innerText = `Showing ${filtered.length} of ${internships.length} opportunities`;
+    }
 
     container.innerHTML = filtered.length
         ? filtered.map(createCard).join("")
         : internships.length
-            ? "<p class=\"company\">No internships match your search.</p>"
+            ? "<p class=\"company\">No internships match your filter criteria. Try clicking Reset Filters.</p>"
             : "<p class=\"company\">No current internships are synced yet. Please check back after the next feed update.</p>";
 }
 
@@ -1051,19 +1144,58 @@ function showDetails(id) {
                     ${overviewFields.map(([label, value]) => `<div class="${label === "Skills" ? "detail-grid-wide" : ""}"><dt>${label}</dt><dd>${escapeHTML(value)}</dd></div>`).join("")}
                 </dl>
             </section>
+            ${getSmartInsightsHTML(internship, skills)}
             <section class="detail-section detail-about" aria-labelledby="detail-about-title">
                 <h3 id="detail-about-title">About this internship</h3>
                 <p>${escapeHTML(description)}</p>
             </section>
             <footer class="detail-actions">
                 ${applicationUrl
-                    ? `<a class="primary-btn detail-apply" href="${escapeHTML(applicationUrl)}" target="_blank" rel="noopener noreferrer">Open application <span aria-hidden="true">↗</span></a>`
+                    ? `<a class="primary-btn detail-apply" href="${escapeHTML(applicationUrl)}" target="_blank" rel="noopener noreferrer" onclick="autoTrackApplication(findInternshipById(${Number(internship.id)}))">Open application <span aria-hidden="true">↗</span></a>`
                     : "<p class=\"detail-no-link\">An application link is not available for this listing.</p>"}
             </footer>
         </article>
     `;
     modal.classList.add("show");
     modal.querySelector(".close").focus();
+}
+
+function getSmartInsightsHTML(internship, skills) {
+    const studentSkills = currentStudent?.skills
+        ? currentStudent.skills.split(",").map(s => s.trim().toLowerCase()).filter(Boolean)
+        : (document.getElementById("skills")?.value || "").split(",").map(s => s.trim().toLowerCase()).filter(Boolean);
+
+    const requiredSkills = skills.map(s => String(s).trim());
+    const matched = [];
+    const missing = [];
+
+    requiredSkills.forEach(req => {
+        if (studentSkills.some(st => st.includes(req.toLowerCase()) || req.toLowerCase().includes(st))) {
+            matched.push(req);
+        } else {
+            missing.push(req);
+        }
+    });
+
+    const matchPercent = requiredSkills.length
+        ? Math.min(100, Math.max(50, Math.round((matched.length / requiredSkills.length) * 100)))
+        : 85;
+
+    return `
+        <div class="smart-insights-panel">
+            <div class="smart-insights-title">
+                <span>⚡ Smart Skill Gap & Match Analysis</span>
+                <span style="margin-left:auto;font-size:13px;color:#16a34a;background:#dcfce7;padding:2px 8px;border-radius:6px;font-weight:700;">${matchPercent}% Fit</span>
+            </div>
+            <div class="skill-match-row">
+                ${matched.length ? `<div><strong>Matching Skills (${matched.length}):</strong> ${matched.map(m => `<span class="skill-chip-matched">✅ ${escapeHTML(m)}</span>`).join("")}</div>` : ""}
+                ${missing.length ? `<div style="margin-top:6px;"><strong>Recommended to Learn (${missing.length}):</strong> ${missing.slice(0, 3).map(m => `<span class="skill-chip-gap">💡 ${escapeHTML(m)}</span>`).join("")} <span style="font-size:12px;color:#64748b;">(Upskilling improves shortlisting!)</span></div>` : ""}
+            </div>
+            <button type="button" class="company-review-trigger-btn" onclick="openCompanyReviews('${escapeHTML(internship.company || "")}')">
+                ⭐ View Company Reviews & Ratings ↗
+            </button>
+        </div>
+    `;
 }
 
 function closeModal() {
@@ -1103,6 +1235,7 @@ function apply(id) {
     const internship = findInternshipById(id);
     const applicationUrl = internship && getSafeApplicationUrl(internship.link);
     if (applicationUrl) {
+        autoTrackApplication(internship);
         window.open(applicationUrl, "_blank", "noopener,noreferrer");
     } else {
         alert("Application link will be added by the administrator.");
@@ -1196,41 +1329,126 @@ function addInternship() {
 }
 
 /* =========================================================
-   ADMIN - MANAGE INTERNSHIPS
+   ADMIN - MANAGE INTERNSHIPS (COMPACT & TABBED)
 ========================================================= */
+let adminCurrentPage = 1;
+const ADMIN_PAGE_SIZE = 12;
+
+function switchAdminTab(tabName) {
+    const paneManage = document.getElementById("adminPaneManage");
+    const paneAdd = document.getElementById("adminPaneAdd");
+    const paneStudents = document.getElementById("adminPaneStudents");
+    const btnManage = document.getElementById("tabBtnManage");
+    const btnAdd = document.getElementById("tabBtnAdd");
+    const btnStudents = document.getElementById("tabBtnStudents");
+
+    if (paneManage) paneManage.hidden = tabName !== "manage";
+    if (paneAdd) paneAdd.hidden = tabName !== "add";
+    if (paneStudents) paneStudents.hidden = tabName !== "students";
+
+    if (btnManage) btnManage.classList.toggle("active", tabName === "manage");
+    if (btnAdd) btnAdd.classList.toggle("active", tabName === "add");
+    if (btnStudents) btnStudents.classList.toggle("active", tabName === "students");
+
+    if (tabName === "manage") displayAdminInternships();
+    if (tabName === "students") {
+        displayStudentRequests();
+        displayApprovedStudents();
+    }
+}
+
+function changeAdminPage(newPage) {
+    adminCurrentPage = newPage;
+    displayAdminInternships();
+}
+
 function displayAdminInternships() {
     const container = document.getElementById("adminInternshipList");
-    const count = document.getElementById("adminInternshipCount");
+    const countEl = document.getElementById("adminInternshipCount");
+    const tabCountEl = document.getElementById("adminTabInternshipCount");
+    const paginationControls = document.getElementById("adminPaginationControls");
     if (!container) return;
 
-    count.innerText = `${internships.length} total`;
-    container.innerHTML = sortIndiaFirst(internships).map(internship => `
-        <div class="card" style="margin-top:15px">
-            <div class="card-top">
-                <div>
-                    <h3 style="margin:0 0 6px">${escapeHTML(internship.title)}</h3>
-                    <div class="company">${escapeHTML(internship.company)}</div>
+    if (tabCountEl) tabCountEl.innerText = String(internships.length);
+
+    const query = (document.getElementById("adminSearchInput")?.value || "").trim().toLowerCase();
+    const typeFilter = document.getElementById("adminFilterType")?.value || "all";
+
+    let filtered = sortIndiaFirst(internships).filter(internship => {
+        if (typeFilter !== "all" && String(internship.type || "").toLowerCase() !== typeFilter.toLowerCase()) {
+            return false;
+        }
+        if (!query) return true;
+        const skills = Array.isArray(internship.skills) ? internship.skills.join(" ") : "";
+        return [
+            internship.title,
+            internship.company,
+            internship.location,
+            internship.branch,
+            internship.specialization,
+            skills
+        ].some(val => String(val || "").toLowerCase().includes(query));
+    });
+
+    const totalFiltered = filtered.length;
+    const totalPages = Math.max(1, Math.ceil(totalFiltered / ADMIN_PAGE_SIZE));
+    if (adminCurrentPage > totalPages) adminCurrentPage = totalPages;
+    if (adminCurrentPage < 1) adminCurrentPage = 1;
+
+    const startIndex = (adminCurrentPage - 1) * ADMIN_PAGE_SIZE;
+    const paginated = filtered.slice(startIndex, startIndex + ADMIN_PAGE_SIZE);
+
+    if (countEl) {
+        countEl.innerText = query || typeFilter !== "all"
+            ? `Showing ${startIndex + 1}-${Math.min(startIndex + ADMIN_PAGE_SIZE, totalFiltered)} of ${totalFiltered} matches (${internships.length} total)`
+            : `Showing ${startIndex + 1}-${Math.min(startIndex + ADMIN_PAGE_SIZE, totalFiltered)} of ${totalFiltered} listings`;
+    }
+
+    if (paginationControls) {
+        paginationControls.innerHTML = totalPages > 1 ? `
+            <button class="admin-page-btn" ${adminCurrentPage <= 1 ? "disabled" : ""} onclick="changeAdminPage(${adminCurrentPage - 1})">← Prev</button>
+            <span style="font-size:12px;font-weight:600;padding:0 6px;">Page ${adminCurrentPage} of ${totalPages}</span>
+            <button class="admin-page-btn" ${adminCurrentPage >= totalPages ? "disabled" : ""} onclick="changeAdminPage(${adminCurrentPage + 1})">Next →</button>
+        ` : "";
+    }
+
+    if (!paginated.length) {
+        container.innerHTML = `<p class="company" style="padding:20px 0;">No internships match your search or filter.</p>`;
+        return;
+    }
+
+    container.innerHTML = paginated.map(internship => {
+        const safeId = Number(internship.id);
+        const isIndia = isIndiaBasedListing(internship);
+        const skillsText = Array.isArray(internship.skills) ? internship.skills.filter(Boolean).slice(0, 5).join(", ") : "";
+        return `
+            <div class="admin-card-row">
+                <div class="admin-card-main">
+                    <div class="admin-card-header">
+                        <h4>${escapeHTML(internship.title)}</h4>
+                        <span class="tag">${escapeHTML(internship.type || "Online")}</span>
+                        ${isIndia ? `<span class="tag india-tag">India</span>` : ""}
+                    </div>
+                    <div class="admin-card-meta">
+                        <span class="admin-meta-item">🏢 <strong>${escapeHTML(internship.company)}</strong></span>
+                        <span class="admin-meta-item">📍 ${escapeHTML(internship.location || "Not specified")}</span>
+                        <span class="admin-meta-item">💰 ${escapeHTML(internship.stipend || "Not specified")}</span>
+                        <span class="admin-meta-item">⏱️ ${escapeHTML(internship.duration || "Not specified")}</span>
+                        ${internship.closingDate ? `<span class="admin-meta-item">🗓 Closes: ${escapeHTML(internship.closingDate)}</span>` : ""}
+                    </div>
+                    <div class="admin-card-tags">
+                        <span class="admin-tag-pill">${escapeHTML(internship.branch || "General")}</span>
+                        ${internship.specialization ? `<span class="admin-tag-pill">${escapeHTML(internship.specialization)}</span>` : ""}
+                        ${skillsText ? `<span class="admin-tag-skills">🧠 ${escapeHTML(skillsText)}</span>` : ""}
+                    </div>
                 </div>
-                <span class="tag">${escapeHTML(internship.type)}</span>
+                <div class="admin-card-actions">
+                    <button class="secondary-btn" onclick="showDetails(${safeId})">View Details</button>
+                    <button class="danger-btn" onclick="deleteInternship(${safeId})" aria-label="Delete ${escapeHTML(internship.title)}">Delete</button>
+                </div>
             </div>
-            <div class="tags">
-                <span class="tag">${escapeHTML(internship.branch)}</span>
-                <span class="tag">${escapeHTML(internship.specialization)}</span>
-            </div>
-            <div class="details">
-                <div>📍 ${escapeHTML(internship.location)}</div>
-                <div>💰 ${escapeHTML(internship.stipend)}</div>
-                <div>⏱️ ${escapeHTML(internship.duration)}</div>
-                <div>🧠 ${escapeHTML(Array.isArray(internship.skills) ? internship.skills.join(", ") : "")}</div>
-            </div>
-            <p class="company" style="margin-top:15px">${escapeHTML(internship.description)}</p>
-            <div class="card-actions">
-                <button class="secondary-btn" onclick="showDetails(${Number(internship.id)})">View Details</button>
-                <button class="danger-btn" onclick="deleteInternship(${Number(internship.id)})"
-                        aria-label="Delete ${escapeHTML(internship.title)}">Delete</button>
-            </div>
-        </div>
-    `).join("");
+        `;
+    }).join("");
 }
 
 function deleteInternship(id) {
@@ -1246,16 +1464,24 @@ function deleteInternship(id) {
 }
 
 /* =========================================================
-   SESSION PERSISTENCE + LOADING ON REFRESH
+   SESSION PERSISTENCE + LOADING ON REFRESH (NO-FLICKER)
 ========================================================= */
 async function restoreFirebaseSession(user) {
     if (!user) {
         clearStudentSession();
         hideLoader();
+        document.body.classList.add("auth-locked");
+        document.body.classList.remove("founder-login");
+        const gate = document.getElementById("authGate");
+        if (gate) gate.hidden = false;
+        showStudentLogin();
         return;
     }
 
-    showLoader("Restoring your session...");
+    if (!currentStudent) {
+        showLoader("Restoring your session...");
+    }
+
     try {
         const adminSnapshot = await firebase.database().ref(`admins/${user.uid}`).once("value");
         if (adminSnapshot.val() === true) {
@@ -1263,7 +1489,8 @@ async function restoreFirebaseSession(user) {
             startSharedInternships();
             document.body.classList.remove("auth-locked");
             document.body.classList.add("founder-login");
-            document.getElementById("authGate").hidden = true;
+            const gate = document.getElementById("authGate");
+            if (gate) gate.hidden = true;
             document.querySelectorAll(".page").forEach(page => page.classList.remove("active"));
             document.getElementById("admin").classList.add("active");
             updateAdminView();
@@ -1276,13 +1503,18 @@ async function restoreFirebaseSession(user) {
         if (!student || student.status !== "approved") {
             clearStudentSession();
             await firebase.auth().signOut();
+            document.body.classList.add("auth-locked");
+            const gate = document.getElementById("authGate");
+            if (gate) gate.hidden = false;
+            showStudentLogin();
             hideLoader();
             return;
         }
 
         saveStudentSession(student);
         document.body.classList.remove("auth-locked", "founder-login");
-        document.getElementById("authGate").hidden = true;
+        const gate = document.getElementById("authGate");
+        if (gate) gate.hidden = true;
         document.querySelectorAll(".page").forEach(page => page.classList.remove("active"));
         document.getElementById("home").classList.add("active");
         startSharedInternships();
@@ -1291,6 +1523,10 @@ async function restoreFirebaseSession(user) {
         console.error("The saved session could not be verified.", error);
         clearStudentSession();
         await firebase.auth().signOut();
+        document.body.classList.add("auth-locked");
+        const gate = document.getElementById("authGate");
+        if (gate) gate.hidden = false;
+        showStudentLogin();
     }
     hideLoader();
 }
@@ -1315,6 +1551,606 @@ window.addEventListener("load", () => {
 });
 
 /* =========================================================
+   DYNAMIC METADATA SYNC (HERO STATS)
+========================================================= */
+function listenToMetadata() {
+    if (!isFirebaseConfigured()) return;
+    try {
+        ensureFirebase();
+        firebase.database().ref("metadata").on("value", snapshot => {
+            const data = snapshot.val();
+            if (data && data.configuredJobBoards) {
+                const el = document.getElementById("configuredJobBoardsCount");
+                if (el) el.innerText = data.configuredJobBoards;
+                const kpi = document.getElementById("kpiBoardsCount");
+                if (kpi) kpi.innerText = data.configuredJobBoards;
+            }
+        });
+    } catch (e) {
+        console.warn("Could not listen to metadata", e);
+    }
+}
+
+/* =========================================================
+   FEATURE 5: APPLICATION TRACKER
+========================================================= */
+let trackedApplications = [];
+try {
+    const saved = JSON.parse(localStorage.getItem("trackedApplications"));
+    if (Array.isArray(saved)) trackedApplications = saved;
+} catch (e) {
+    trackedApplications = [];
+}
+
+let activeTrackerFilter = "all";
+
+function saveApplications() {
+    localStorage.setItem("trackedApplications", JSON.stringify(trackedApplications));
+    if (isFirebaseConfigured() && firebase.auth().currentUser) {
+        try {
+            ensureFirebase();
+            const uid = firebase.auth().currentUser.uid;
+            firebase.database().ref(`students/${uid}/applications`).set(trackedApplications).catch(err => {
+                console.warn("Could not sync applications to Firebase", err);
+            });
+        } catch (e) {}
+    }
+    updateTrackerMetrics();
+}
+
+function loadApplicationsFromFirebase() {
+    if (!isFirebaseConfigured() || !firebase.auth().currentUser) return;
+    try {
+        ensureFirebase();
+        const uid = firebase.auth().currentUser.uid;
+        firebase.database().ref(`students/${uid}/applications`).once("value").then(snapshot => {
+            const val = snapshot.val();
+            if (Array.isArray(val)) {
+                trackedApplications = val;
+                localStorage.setItem("trackedApplications", JSON.stringify(trackedApplications));
+                updateTrackerMetrics();
+                if (document.getElementById("tracker")?.classList.contains("active")) {
+                    renderTrackerPage();
+                }
+            }
+        });
+    } catch (e) {}
+}
+
+function updateTrackerMetrics() {
+    const total = trackedApplications.length;
+    const applied = trackedApplications.filter(a => a.status === "Applied").length;
+    const interviewing = trackedApplications.filter(a => a.status === "Interviewing").length;
+    const offers = trackedApplications.filter(a => a.status === "Offer").length;
+    const saved = trackedApplications.filter(a => a.status === "Saved").length;
+    const rejected = trackedApplications.filter(a => a.status === "Rejected").length;
+
+    const badge = document.getElementById("trackerBadge");
+    if (badge) badge.innerText = String(total);
+
+    const elTotal = document.getElementById("trackerTotalCount");
+    const elApplied = document.getElementById("trackerAppliedCount");
+    const elInterview = document.getElementById("trackerInterviewCount");
+    const elOffer = document.getElementById("trackerOfferCount");
+    if (elTotal) elTotal.innerText = total;
+    if (elApplied) elApplied.innerText = applied;
+    if (elInterview) elInterview.innerText = interviewing;
+    if (elOffer) elOffer.innerText = offers;
+
+    const tabAll = document.getElementById("tabCountAll");
+    const tabApp = document.getElementById("tabCountApplied");
+    const tabInt = document.getElementById("tabCountInterviewing");
+    const tabOff = document.getElementById("tabCountOffer");
+    const tabSav = document.getElementById("tabCountSaved");
+    const tabRej = document.getElementById("tabCountRejected");
+    if (tabAll) tabAll.innerText = total;
+    if (tabApp) tabApp.innerText = applied;
+    if (tabInt) tabInt.innerText = interviewing;
+    if (tabOff) tabOff.innerText = offers;
+    if (tabSav) tabSav.innerText = saved;
+    if (tabRej) tabRej.innerText = rejected;
+}
+
+function autoTrackApplication(internship) {
+    if (!internship) return;
+    const exists = trackedApplications.some(a => String(a.internshipId) === String(internship.id));
+    if (!exists) {
+        trackedApplications.unshift({
+            id: Date.now(),
+            internshipId: internship.id,
+            company: internship.company || "Company",
+            title: internship.title || "Internship Role",
+            status: "Applied",
+            date: getLocalDateString(),
+            link: getSafeApplicationUrl(internship.link),
+            notes: "Applied directly through official job board."
+        });
+        saveApplications();
+    }
+}
+
+function openAddTrackerModal() {
+    const modal = document.getElementById("addTrackerModal");
+    if (modal) {
+        const dateInput = document.getElementById("trackDate");
+        if (dateInput) dateInput.value = getLocalDateString();
+        modal.classList.add("show");
+    }
+}
+
+function closeAddTrackerModal() {
+    const modal = document.getElementById("addTrackerModal");
+    if (modal) modal.classList.remove("show");
+}
+
+function submitCustomTracker(e) {
+    e.preventDefault();
+    const company = document.getElementById("trackCompany").value.trim();
+    const title = document.getElementById("trackTitle").value.trim();
+    const status = document.getElementById("trackStatus").value;
+    const date = document.getElementById("trackDate").value || getLocalDateString();
+    const link = document.getElementById("trackLink").value.trim();
+    const notes = document.getElementById("trackNotes").value.trim();
+
+    if (!company || !title) return;
+
+    trackedApplications.unshift({
+        id: Date.now(),
+        internshipId: null,
+        company,
+        title,
+        status,
+        date,
+        link,
+        notes
+    });
+
+    saveApplications();
+    closeAddTrackerModal();
+    renderTrackerPage();
+}
+
+function filterTrackerStatus(status, tabElement) {
+    activeTrackerFilter = status;
+    document.querySelectorAll(".tracker-tab").forEach(tab => tab.classList.remove("active"));
+    if (tabElement) tabElement.classList.add("active");
+    renderTrackerPage();
+}
+
+function updateApplicationStatus(id, newStatus) {
+    const app = trackedApplications.find(a => String(a.id) === String(id));
+    if (app) {
+        app.status = newStatus;
+        saveApplications();
+        renderTrackerPage();
+    }
+}
+
+function deleteTrackedApplication(id) {
+    if (!confirm("Remove this application from your tracker?")) return;
+    trackedApplications = trackedApplications.filter(a => String(a.id) !== String(id));
+    saveApplications();
+    renderTrackerPage();
+}
+
+function renderTrackerPage() {
+    updateTrackerMetrics();
+    const container = document.getElementById("trackerListContainer");
+    if (!container) return;
+
+    const list = activeTrackerFilter === "all"
+        ? trackedApplications
+        : trackedApplications.filter(a => a.status === activeTrackerFilter);
+
+    if (!list.length) {
+        container.innerHTML = `<p class="company">No applications found under the "${activeTrackerFilter}" status stage.</p>`;
+        return;
+    }
+
+    container.innerHTML = list.map(app => {
+        const statusClass = `status-${(app.status || "applied").toLowerCase()}`;
+        return `
+            <div class="tracker-card">
+                <div class="tracker-card-left">
+                    <div class="tracker-card-title">${escapeHTML(app.title)}</div>
+                    <div class="tracker-card-company">${escapeHTML(app.company)} • 🗓 ${escapeHTML(app.date || "")}</div>
+                    ${app.notes ? `<div class="tracker-card-notes">📝 ${escapeHTML(app.notes)}</div>` : ""}
+                </div>
+                <div class="tracker-card-right">
+                    <span class="status-badge ${statusClass}">${escapeHTML(app.status)}</span>
+                    <select onchange="updateApplicationStatus('${app.id}', this.value)" style="height:36px;padding:0 8px;border-radius:8px;border:1px solid #cbd5e1;font-size:12px;">
+                        <option value="Applied" ${app.status === "Applied" ? "selected" : ""}>Applied</option>
+                        <option value="Interviewing" ${app.status === "Interviewing" ? "selected" : ""}>Interviewing</option>
+                        <option value="Offer" ${app.status === "Offer" ? "selected" : ""}>Offer 🎉</option>
+                        <option value="Saved" ${app.status === "Saved" ? "selected" : ""}>Saved</option>
+                        <option value="Rejected" ${app.status === "Rejected" ? "selected" : ""}>Rejected</option>
+                    </select>
+                    ${app.link ? `<a class="secondary-btn" href="${escapeHTML(app.link)}" target="_blank" rel="noopener noreferrer" style="padding:6px 12px;font-size:12px;text-decoration:none;">Portal ↗</a>` : ""}
+                    <button class="danger-btn" onclick="deleteTrackedApplication('${app.id}')" style="padding:6px 12px;font-size:12px;">Delete</button>
+                </div>
+            </div>
+        `;
+    }).join("");
+}
+
+/* =========================================================
+   FEATURE 1: STATS & INSIGHTS DASHBOARD
+========================================================= */
+function renderInsightsDashboard() {
+    const totalRoles = internships.length;
+    const indiaRoles = internships.filter(isIndiaBasedListing).length;
+    const remoteRoles = internships.filter(i => i.type === "Online" || /remote|virtual|online/i.test(i.location || "")).length;
+    const configuredBoardsEl = document.getElementById("configuredJobBoardsCount");
+    const boardsCount = configuredBoardsEl ? configuredBoardsEl.innerText : "46";
+
+    // Update KPI numbers
+    const elTotal = document.getElementById("kpiTotalRoles");
+    const elIndia = document.getElementById("kpiIndiaRoles");
+    const elRemote = document.getElementById("kpiRemoteRoles");
+    const elBoards = document.getElementById("kpiBoardsCount");
+    if (elTotal) elTotal.innerText = totalRoles;
+    if (elIndia) elIndia.innerText = `${indiaRoles} (${totalRoles ? Math.round((indiaRoles / totalRoles) * 100) : 0}%)`;
+    if (elRemote) elRemote.innerText = `${remoteRoles} (${totalRoles ? Math.round((remoteRoles / totalRoles) * 100) : 0}%)`;
+    if (elBoards) elBoards.innerText = boardsCount;
+
+    // 1. Top Hiring Companies
+    const companyCounts = {};
+    internships.forEach(i => {
+        const c = String(i.company || "Other").trim();
+        if (c) companyCounts[c] = (companyCounts[c] || 0) + 1;
+    });
+    const sortedCompanies = Object.entries(companyCounts).sort((a, b) => b[1] - a[1]).slice(0, 6);
+    const maxComp = sortedCompanies[0]?.[1] || 1;
+    const companiesContainer = document.getElementById("topCompaniesList");
+    if (companiesContainer) {
+        companiesContainer.innerHTML = sortedCompanies.map(([name, count]) => `
+            <div class="analytics-bar-item">
+                <div class="analytics-bar-label">
+                    <span>${escapeHTML(name)}</span>
+                    <strong>${count} openings</strong>
+                </div>
+                <div class="analytics-bar-track">
+                    <div class="analytics-bar-fill" style="width:${Math.round((count / maxComp) * 100)}%"></div>
+                </div>
+            </div>
+        `).join("") || "<p class='company'>No company statistics available.</p>";
+    }
+
+    // 2. Most In-Demand Skills
+    const skillCounts = {};
+    internships.forEach(i => {
+        if (Array.isArray(i.skills)) {
+            i.skills.forEach(s => {
+                const clean = String(s).trim();
+                if (clean && clean.length > 1) {
+                    skillCounts[clean] = (skillCounts[clean] || 0) + 1;
+                }
+            });
+        }
+    });
+    const sortedSkills = Object.entries(skillCounts).sort((a, b) => b[1] - a[1]).slice(0, 14);
+    const skillsCloud = document.getElementById("topSkillsCloud");
+    if (skillsCloud) {
+        skillsCloud.innerHTML = sortedSkills.map(([skill, count]) => `
+            <span class="skill-pill">
+                ${escapeHTML(skill)}
+                <span class="skill-pill-count">${count}</span>
+            </span>
+        `).join("") || "<p class='company'>No skill tags available.</p>";
+    }
+
+    // 3. Top Locations in India
+    const hubNames = [
+        ["Bengaluru", /\b(bengaluru|bangalore)\b/i],
+        ["Hyderabad", /\bhyderabad\b/i],
+        ["Pune", /\bpune\b/i],
+        ["Mumbai", /\bmumbai\b/i],
+        ["Delhi-NCR / Gurgaon", /\b(delhi|gurgaon|gurugram|noida)\b/i],
+        ["Chennai", /\bchennai\b/i]
+    ];
+    const hubCounts = hubNames.map(([label, pattern]) => {
+        const count = internships.filter(i => pattern.test(i.location || "")).length;
+        return [label, count];
+    }).sort((a, b) => b[1] - a[1]);
+    const maxHub = Math.max(...hubCounts.map(h => h[1]), 1);
+    const hubsContainer = document.getElementById("topLocationsList");
+    if (hubsContainer) {
+        hubsContainer.innerHTML = hubCounts.map(([city, count]) => `
+            <div class="analytics-bar-item">
+                <div class="analytics-bar-label">
+                    <span>📍 ${city}</span>
+                    <strong>${count} roles</strong>
+                </div>
+                <div class="analytics-bar-track">
+                    <div class="analytics-bar-fill" style="width:${Math.round((count / maxHub) * 100)}%"></div>
+                </div>
+            </div>
+        `).join("");
+    }
+
+    // 4. Work Arrangement Breakdown
+    const online = internships.filter(i => i.type === "Online").length;
+    const offline = internships.filter(i => i.type === "Offline").length;
+    const hybrid = internships.filter(i => i.type === "Hybrid").length;
+    const breakdownContainer = document.getElementById("workModeBreakdown");
+    if (breakdownContainer) {
+        const total = totalRoles || 1;
+        breakdownContainer.innerHTML = `
+            <div class="analytics-bar-item">
+                <div class="analytics-bar-label"><span>🌐 Online / Remote (${Math.round((online/total)*100)}%)</span><strong>${online} roles</strong></div>
+                <div class="analytics-bar-track"><div class="analytics-bar-fill" style="width:${Math.round((online/total)*100)}%"></div></div>
+            </div>
+            <div class="analytics-bar-item">
+                <div class="analytics-bar-label"><span>🏢 In-Person / Onsite (${Math.round((offline/total)*100)}%)</span><strong>${offline} roles</strong></div>
+                <div class="analytics-bar-track"><div class="analytics-bar-fill" style="width:${Math.round((offline/total)*100)}%;background:#f59e0b;"></div></div>
+            </div>
+            <div class="analytics-bar-item">
+                <div class="analytics-bar-label"><span>🔄 Hybrid (${Math.round((hybrid/total)*100)}%)</span><strong>${hybrid} roles</strong></div>
+                <div class="analytics-bar-track"><div class="analytics-bar-fill" style="width:${Math.round((hybrid/total)*100)}%;background:#6366f1;"></div></div>
+            </div>
+        `;
+    }
+}
+
+/* =========================================================
+   FEATURE 12: PEER REFERRAL SYSTEM
+========================================================= */
+let referralsData = [
+    {
+        id: "ref-1",
+        company: "Microsoft",
+        role: "Software Engineering Intern (Summer 2026)",
+        name: "Sai Kumar V. (2024 Alumnus)",
+        batch: "2025 & 2026 Batch Graduates",
+        skills: "Data Structures, Algorithms, Python / C++",
+        contact: "https://www.linkedin.com",
+        instructions: "Connect on LinkedIn with your updated resume and mention Sri Vasavi placement referral."
+    },
+    {
+        id: "ref-2",
+        company: "Infosys",
+        role: "Specialist Programmer / Digital Specialist Engineer",
+        name: "Pooja R. (2023 Alumna)",
+        batch: "2025 & 2026 Batches (CSE, IT, ECE)",
+        skills: "Java, DBMS, Cloud Basics, Problem Solving",
+        contact: "https://www.linkedin.com",
+        instructions: "Drop a note on LinkedIn with your college roll number and resume PDF link."
+    },
+    {
+        id: "ref-3",
+        company: "Amazon",
+        role: "Applied Scientist / SDE Intern",
+        name: "Kiran Teja (2024 Alumnus)",
+        batch: "2026 Batch",
+        skills: "Python, Machine Learning, Deep Learning, SQL",
+        contact: "https://www.linkedin.com",
+        instructions: "Send your GitHub profile, 2 top projects, and resume on LinkedIn."
+    }
+];
+
+function loadReferrals() {
+    try {
+        const saved = JSON.parse(localStorage.getItem("studentReferrals"));
+        if (Array.isArray(saved) && saved.length) referralsData = saved;
+    } catch (e) {}
+
+    if (isFirebaseConfigured()) {
+        try {
+            ensureFirebase();
+            firebase.database().ref("referrals").once("value").then(snapshot => {
+                const val = snapshot.val();
+                if (val && typeof val === "object") {
+                    const loaded = Object.values(val);
+                    if (loaded.length) {
+                        referralsData = loaded;
+                        localStorage.setItem("studentReferrals", JSON.stringify(referralsData));
+                        if (document.getElementById("referrals")?.classList.contains("active")) {
+                            renderReferrals();
+                        }
+                    }
+                }
+            });
+        } catch (e) {}
+    }
+}
+
+function openPostReferralModal() {
+    const modal = document.getElementById("postReferralModal");
+    if (modal) modal.classList.add("show");
+}
+
+function closePostReferralModal() {
+    const modal = document.getElementById("postReferralModal");
+    if (modal) modal.classList.remove("show");
+}
+
+function submitReferral(e) {
+    e.preventDefault();
+    const company = document.getElementById("refCompany").value.trim();
+    const role = document.getElementById("refRole").value.trim();
+    const name = document.getElementById("refName").value.trim();
+    const batch = document.getElementById("refBatch").value.trim();
+    const skills = document.getElementById("refSkills").value.trim();
+    const contact = document.getElementById("refContact").value.trim();
+    const instructions = document.getElementById("refInstructions").value.trim();
+
+    if (!company || !role || !name || !contact) return;
+
+    const newRef = {
+        id: `ref-${Date.now()}`,
+        company, role, name, batch, skills, contact, instructions
+    };
+
+    referralsData.unshift(newRef);
+    localStorage.setItem("studentReferrals", JSON.stringify(referralsData));
+
+    if (isFirebaseConfigured()) {
+        try {
+            ensureFirebase();
+            firebase.database().ref(`referrals/${newRef.id}`).set(newRef).catch(console.warn);
+        } catch (e) {}
+    }
+
+    closePostReferralModal();
+    renderReferrals();
+    alert("Referral opening published! Juniors can now connect with you.");
+}
+
+function requestReferral(refId) {
+    const ref = referralsData.find(r => r.id === refId);
+    if (!ref) return;
+    if (ref.contact.startsWith("http")) {
+        window.open(ref.contact, "_blank", "noopener,noreferrer");
+    } else {
+        alert(`Contact referrer at: ${ref.contact}\nInstructions: ${ref.instructions || "Mention SVEC student referral."}`);
+    }
+}
+
+function renderReferrals() {
+    const container = document.getElementById("referralContainer");
+    if (!container) return;
+
+    container.innerHTML = referralsData.map(ref => `
+        <div class="referral-card">
+            <div>
+                <div class="referral-card-company">${escapeHTML(ref.company)}</div>
+                <div class="referral-card-role">${escapeHTML(ref.role)}</div>
+                <div class="referral-card-senior">Referrer: <strong>${escapeHTML(ref.name)}</strong></div>
+                ${ref.batch ? `<div style="font-size:12px;color:#0f766e;margin-bottom:8px;font-weight:600;">🎓 ${escapeHTML(ref.batch)}</div>` : ""}
+                ${ref.skills ? `<div class="referral-card-skills">⚡ <strong>Required:</strong> ${escapeHTML(ref.skills)}</div>` : ""}
+                ${ref.instructions ? `<div style="font-size:12px;color:var(--theme-muted,#64748b);background:#f8fafc;padding:8px 10px;border-radius:8px;margin-bottom:14px;">ℹ️ ${escapeHTML(ref.instructions)}</div>` : ""}
+            </div>
+            <button class="primary-btn" onclick="requestReferral('${ref.id}')" style="width:100%;margin-top:auto;">Request Referral ↗</button>
+        </div>
+    `).join("");
+}
+
+/* =========================================================
+   FEATURE 8: COMPANY REVIEWS & RATINGS
+========================================================= */
+let currentCompanyForReview = "";
+const sampleReviewsStore = {
+    "google": [
+        { name: "Akhil K. (CSE)", rating: 5, difficulty: "Hard", role: "Software Engineering Intern", comment: "Outstanding mentorship, cutting-edge projects in distributed systems, and very supportive team culture.", tips: "Practice graph algorithms and dynamic programming. Strong system design fundamentals are rewarded." },
+        { name: "Sneha M. (IT)", rating: 5, difficulty: "Hard", role: "Cloud Technical Intern", comment: "Fast-paced environment, generous stipend, and great conversion rates for dedicated students.", tips: "Be crystal clear on OS concepts, networking, and clean coding practices." }
+    ],
+    "microsoft": [
+        { name: "Varun R. (CSE)", rating: 5, difficulty: "Medium", role: "SDE Intern", comment: "Amazing work-life balance and high focus on learning. Mentors hold weekly 1-on-1s.", tips: "LeetCode Mediums on Trees, Graphs, and HashMaps are sufficient. Communicate your thought process clearly." }
+    ],
+    "technovaai": [
+        { name: "Praveen T. (AI&DS)", rating: 4, difficulty: "Medium", role: "Machine Learning Intern", comment: "Worked on real-time computer vision inference models. Great hands-on production experience.", tips: "Brush up PyTorch, model optimization, and Docker deployment basics." }
+    ]
+};
+
+function getSanitizedCompanyKey(company) {
+    return String(company || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function openCompanyReviews(companyName) {
+    currentCompanyForReview = companyName;
+    const modal = document.getElementById("companyReviewsModal");
+    if (!modal) return;
+
+    const key = getSanitizedCompanyKey(companyName);
+    const reviews = sampleReviewsStore[key] || [
+        { name: "SVEC Senior", rating: 4, difficulty: "Medium", role: "Software Intern", comment: "Good learning curve, fair assessment process, and responsive engineering team.", tips: "Prepare basic DSA, OOPs concepts, and your resume projects thoroughly." }
+    ];
+
+    const header = document.getElementById("companyReviewsHeader");
+    const countEl = document.getElementById("companyReviewsCount");
+    if (header) {
+        const avg = (reviews.reduce((acc, r) => acc + Number(r.rating || 4), 0) / reviews.length).toFixed(1);
+        header.innerHTML = `
+            <h2 id="reviewsModalTitle" style="margin-bottom:4px;color:#0f766e;">🏢 ${escapeHTML(companyName)} Reviews</h2>
+            <div style="font-size:15px;font-weight:700;color:#16a34a;margin-bottom:6px;">⭐ ${avg} / 5.0 Rating • ${reviews.length} Verified Student Reviews</div>
+            <p class="company">Interview insights, difficulty ratings, and work culture submitted by seniors.</p>
+        `;
+    }
+    if (countEl) countEl.innerText = reviews.length;
+
+    renderCompanyReviewsList(reviews);
+    switchReviewsTab("view");
+    modal.classList.add("show");
+}
+
+function closeReviewsModal() {
+    const modal = document.getElementById("companyReviewsModal");
+    if (modal) modal.classList.remove("show");
+}
+
+function switchReviewsTab(tab) {
+    const viewPane = document.getElementById("reviewsViewPane");
+    const writePane = document.getElementById("reviewsWritePane");
+    const tabView = document.getElementById("tabViewReviews");
+    const tabWrite = document.getElementById("tabWriteReview");
+
+    if (tab === "view") {
+        viewPane.hidden = false;
+        writePane.hidden = true;
+        tabView.classList.add("active");
+        tabWrite.classList.remove("active");
+    } else {
+        viewPane.hidden = true;
+        writePane.hidden = false;
+        tabView.classList.remove("active");
+        tabWrite.classList.add("active");
+    }
+}
+
+function renderCompanyReviewsList(reviews) {
+    const list = document.getElementById("companyReviewsList");
+    if (!list) return;
+
+    list.innerHTML = reviews.map(r => {
+        const stars = "⭐".repeat(Math.max(1, Math.min(5, Number(r.rating || 4))));
+        const diffClass = r.difficulty === "Easy" ? "diff-easy" : r.difficulty === "Hard" ? "diff-hard" : "diff-medium";
+        return `
+            <div class="review-item-card">
+                <div class="review-item-top">
+                    <div>
+                        <strong>${escapeHTML(r.name || "Student")}</strong>
+                        <span style="font-size:12px;color:#64748b;margin-left:8px;">${escapeHTML(r.role || "Intern")}</span>
+                    </div>
+                    <span class="difficulty-badge ${diffClass}">${escapeHTML(r.difficulty)} Difficulty</span>
+                </div>
+                <div style="margin-bottom:6px;">${stars}</div>
+                <p style="font-size:13px;line-height:1.5;margin-bottom:8px;">${escapeHTML(r.comment)}</p>
+                ${r.tips ? `<div style="font-size:12px;color:#0f766e;background:#f0fdfa;padding:6px 10px;border-radius:6px;">💡 <strong>Junior Tips:</strong> ${escapeHTML(r.tips)}</div>` : ""}
+            </div>
+        `;
+    }).join("");
+}
+
+function submitCompanyReview(e) {
+    e.preventDefault();
+    const rating = Number(document.getElementById("reviewRating").value);
+    const difficulty = document.getElementById("reviewDifficulty").value;
+    const role = document.getElementById("reviewRole").value.trim();
+    const comment = document.getElementById("reviewComment").value.trim();
+    const tips = document.getElementById("reviewTips").value.trim();
+
+    const key = getSanitizedCompanyKey(currentCompanyForReview);
+    if (!sampleReviewsStore[key]) sampleReviewsStore[key] = [];
+
+    const newReview = {
+        name: currentStudent ? `${currentStudent.name.split(" ")[0]} (${currentStudent.branch || "SVEC"})` : "SVEC Student",
+        rating, difficulty, role, comment, tips
+    };
+
+    sampleReviewsStore[key].unshift(newReview);
+    if (isFirebaseConfigured()) {
+        try {
+            ensureFirebase();
+            firebase.database().ref(`company_reviews/${key}`).push(newReview).catch(console.warn);
+        } catch (err) {}
+    }
+
+    renderCompanyReviewsList(sampleReviewsStore[key]);
+    switchReviewsTab("view");
+    alert("Thank you! Your company review has been submitted for fellow students.");
+}
+
+/* =========================================================
    INITIAL RENDER
 ========================================================= */
 Object.assign(window, {
@@ -1323,18 +2159,34 @@ Object.assign(window, {
     adminLogout,
     apply,
     approveStudent,
+    autoTrackApplication,
     bookmark,
     beginProfileEdit,
     cancelProfileEdit,
+    changeAdminPage,
+    clearInternshipFilters,
+    closeAddTrackerModal,
     closeModal,
+    closePostReferralModal,
+    closeReviewsModal,
     deleteInternship,
+    deleteTrackedApplication,
+    displayAdminInternships,
     displayInternships,
+    filterTrackerStatus,
     findMatches,
+    openAddTrackerModal,
+    openCompanyReviews,
     openFounderLogin,
+    openPostReferralModal,
     rejectStudent,
     registerStudent,
     resetStudentPassword,
+    requestReferral,
     returnToStudentLogin,
+    renderInsightsDashboard,
+    renderReferrals,
+    renderTrackerPage,
     selectType,
     showDetails,
     showPage,
@@ -1343,11 +2195,20 @@ Object.assign(window, {
     saveStudentProfile,
     studentLogin,
     studentLogout,
-    togglePassword
+    submitCompanyReview,
+    submitCustomTracker,
+    submitReferral,
+    switchAdminTab,
+    switchReviewsTab,
+    togglePassword,
+    updateApplicationStatus
 });
 
 displayFeatured();
 displayInternships();
 displayAdminInternships();
 updateHomeStats();
+updateTrackerMetrics();
+loadReferrals();
+listenToMetadata();
 publishInternshipUpdates();

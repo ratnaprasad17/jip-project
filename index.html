@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Discover verified student and graduate internships across India and globally. Real-time listings from 46+ top company job boards with smart AI matching.">
 <title>InternMatch - Find Your Internship</title>
 <link rel="icon" type="image/jpeg" href="vasavi-logo.jpg">
 <script>
@@ -11,13 +12,18 @@
         document.documentElement.dataset.theme = savedTheme === "light" || savedTheme === "dark"
             ? savedTheme
             : "light";
+        const savedSession = localStorage.getItem("studentSession");
+        if (savedSession) {
+            window.__PRELOADED_STUDENT__ = JSON.parse(savedSession);
+            document.documentElement.classList.add("has-session");
+        }
     } catch (error) {
         document.documentElement.dataset.theme = "light";
     }
 </script>
 <link rel="stylesheet" href="style.css">
 </head>
-<body class="auth-locked">
+<body>
 
 <!-- ================= LOADING OVERLAY ================= -->
 <div id="loadingOverlay" class="loading-overlay">
@@ -25,7 +31,7 @@
         <img src="vasavi-logo.jpg" alt="College Logo" class="loader-logo-img">
         <div class="loader-logo">Intern<span>Match</span></div>
         <div class="loader-spinner"></div>
-        <p class="loader-text" id="loaderText">Logging you in...</p>
+        <p class="loader-text" id="loaderText">Loading InternMatch...</p>
         <div class="loader-dots">
             <span></span><span></span><span></span>
         </div>
@@ -35,7 +41,7 @@
 <div id="theme-toggle-root"></div>
 
 <!-- ================= AUTH GATE ================= -->
-<section id="authGate">
+<section id="authGate" hidden>
     <div class="auth-card">
         <img src="vasavi-logo.jpg" alt="Sri Vasavi Engineering College" class="auth-logo-img">
         <h1>InternMatch</h1>
@@ -86,6 +92,9 @@
         <button class="nav-btn" onclick="showPage('home')">Home</button>
         <button class="nav-btn" onclick="showPage('preferences')">Find Internship</button>
         <button class="nav-btn" onclick="showPage('favorites')">Saved <span id="savedCount">0</span></button>
+        <button class="nav-btn" onclick="showPage('tracker')">Tracker 📋 <span id="trackerBadge" class="nav-counter">0</span></button>
+        <button class="nav-btn" onclick="showPage('insights')">Insights 📊</button>
+        <button class="nav-btn" onclick="showPage('referrals')">Referrals 🤝</button>
         <button class="nav-btn" onclick="showPage('profile')">My Profile</button>
         <button class="nav-btn logout-nav-btn" onclick="studentLogout()">Logout</button>
     </div>
@@ -103,7 +112,7 @@
             <div class="hero-stats" aria-label="Internship highlights">
                 <div class="hero-stat"><strong id="internshipCount">0</strong><span>current opportunities</span></div>
                 <div class="hero-stat"><strong id="onlineCount">0</strong><span>online options</span></div>
-                <div class="hero-stat"><strong>26</strong><span>configured job boards</span></div>
+                <div class="hero-stat"><strong id="configuredJobBoardsCount">46</strong><span>configured job boards</span></div>
             </div>
         </div>
     </div>
@@ -121,11 +130,62 @@
     <div class="section">
         <div class="section-title">
             <h2>⭐ Latest Internships</h2>
-            <span>Compare roles, places and stipends</span>
+            <span id="latestInternshipSubtitle">Compare roles, places and stipends</span>
         </div>
         <div class="search-box">
             <input type="text" id="searchInput" aria-label="Search internships, skills, or companies" placeholder="Search internships, skills, companies..."
                    oninput="displayInternships()">
+        </div>
+        <div class="filter-bar" id="internshipFilterBar">
+            <div class="filter-controls">
+                <div class="filter-group">
+                    <label for="filterWorkType">Work Mode</label>
+                    <select id="filterWorkType" onchange="displayInternships()">
+                        <option value="all">All Modes</option>
+                        <option value="Online">🌐 Online / Remote</option>
+                        <option value="Offline">🏢 Offline / Onsite</option>
+                        <option value="Hybrid">🔄 Hybrid</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="filterLocation">Location</label>
+                    <select id="filterLocation" onchange="displayInternships()">
+                        <option value="all">All Locations</option>
+                        <option value="india">🇮🇳 India Only</option>
+                        <option value="bengaluru">Bengaluru</option>
+                        <option value="hyderabad">Hyderabad</option>
+                        <option value="pune">Pune</option>
+                        <option value="mumbai">Mumbai</option>
+                        <option value="delhi">Delhi / NCR</option>
+                        <option value="remote">Remote / Virtual</option>
+                        <option value="global">🌍 Global / Outside India</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="filterBranch">Branch / Field</label>
+                    <select id="filterBranch" onchange="displayInternships()">
+                        <option value="all">All Branches</option>
+                        <option value="Computer Science">Computer Science</option>
+                        <option value="Artificial Intelligence">AI & ML</option>
+                        <option value="Information Technology">Information Tech</option>
+                        <option value="Electronics & Communication">Electronics</option>
+                        <option value="Mechanical Engineering">Mechanical</option>
+                        <option value="Civil Engineering">Civil</option>
+                        <option value="Business / Management">Business / MBA</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="filterSort">Sort By</label>
+                    <select id="filterSort" onchange="displayInternships()">
+                        <option value="india_first">🇮🇳 India First (Recommended)</option>
+                        <option value="newest">🗓️ Newest First</option>
+                        <option value="title_asc">🔤 Role Title (A - Z)</option>
+                        <option value="company_asc">🏢 Company (A - Z)</option>
+                    </select>
+                </div>
+                <button class="filter-clear-btn" type="button" onclick="clearInternshipFilters()">Reset</button>
+            </div>
+            <div class="filter-meta" id="filterStatusText">Showing all opportunities</div>
         </div>
         <div class="internship-grid" id="internshipContainer"></div>
     </div>
@@ -247,6 +307,151 @@
     </div>
 </section>
 
+<!-- ================= APPLICATION TRACKER ================= -->
+<section id="tracker" class="page">
+    <div class="section">
+        <div class="section-title">
+            <div>
+                <h2>📋 Application Tracker</h2>
+                <span>Keep track of every internship application, interview stage, and offer</span>
+            </div>
+            <button class="primary-btn" type="button" onclick="openAddTrackerModal()">+ Track Application</button>
+        </div>
+
+        <div class="tracker-summary-grid">
+            <div class="tracker-metric-card">
+                <span class="tracker-metric-num" id="trackerTotalCount">0</span>
+                <span class="tracker-metric-label">Total Tracked</span>
+            </div>
+            <div class="tracker-metric-card">
+                <span class="tracker-metric-num" id="trackerAppliedCount">0</span>
+                <span class="tracker-metric-label">Applied</span>
+            </div>
+            <div class="tracker-metric-card">
+                <span class="tracker-metric-num" id="trackerInterviewCount">0</span>
+                <span class="tracker-metric-label">Interviewing</span>
+            </div>
+            <div class="tracker-metric-card highlight-offer">
+                <span class="tracker-metric-num" id="trackerOfferCount">0</span>
+                <span class="tracker-metric-label">Offers 🎉</span>
+            </div>
+        </div>
+
+        <div class="tracker-status-tabs" role="tablist">
+            <button class="tracker-tab active" data-status="all" onclick="filterTrackerStatus('all', this)">All (<span id="tabCountAll">0</span>)</button>
+            <button class="tracker-tab" data-status="Applied" onclick="filterTrackerStatus('Applied', this)">Applied (<span id="tabCountApplied">0</span>)</button>
+            <button class="tracker-tab" data-status="Interviewing" onclick="filterTrackerStatus('Interviewing', this)">Interviewing (<span id="tabCountInterviewing">0</span>)</button>
+            <button class="tracker-tab" data-status="Offer" onclick="filterTrackerStatus('Offer', this)">Offers (<span id="tabCountOffer">0</span>)</button>
+            <button class="tracker-tab" data-status="Saved" onclick="filterTrackerStatus('Saved', this)">Saved (<span id="tabCountSaved">0</span>)</button>
+            <button class="tracker-tab" data-status="Rejected" onclick="filterTrackerStatus('Rejected', this)">Rejected (<span id="tabCountRejected">0</span>)</button>
+        </div>
+
+        <div class="tracker-list" id="trackerListContainer">
+            <p class="company">No applications tracked yet. Click "Apply" on any internship or click "+ Track Application" to start!</p>
+        </div>
+    </div>
+</section>
+
+<!-- ================= STATS & INSIGHTS DASHBOARD ================= -->
+<section id="insights" class="page">
+    <div class="section">
+        <div class="section-title">
+            <div>
+                <h2>📊 Internship Trends & Analytics</h2>
+                <span>Real-time intelligence from hundreds of verified tech listings</span>
+            </div>
+            <button class="secondary-btn" onclick="renderInsightsDashboard()">🔄 Refresh Insights</button>
+        </div>
+
+        <div class="insights-kpi-grid">
+            <div class="insights-kpi-card">
+                <div class="kpi-icon">💼</div>
+                <div class="kpi-info">
+                    <strong id="kpiTotalRoles">0</strong>
+                    <span>Total Live Roles</span>
+                </div>
+            </div>
+            <div class="insights-kpi-card">
+                <div class="kpi-icon">🇮🇳</div>
+                <div class="kpi-info">
+                    <strong id="kpiIndiaRoles">0</strong>
+                    <span>India Opportunities</span>
+                </div>
+            </div>
+            <div class="insights-kpi-card">
+                <div class="kpi-icon">🌐</div>
+                <div class="kpi-info">
+                    <strong id="kpiRemoteRoles">0</strong>
+                    <span>Remote / Online</span>
+                </div>
+            </div>
+            <div class="insights-kpi-card">
+                <div class="kpi-icon">📡</div>
+                <div class="kpi-info">
+                    <strong id="kpiBoardsCount">46</strong>
+                    <span>Verified Job Boards</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="insights-analytics-layout">
+            <div class="analytics-card">
+                <div class="analytics-card-header">
+                    <h3>🏢 Top Hiring Companies</h3>
+                    <span>Most active recruiters in the feed</span>
+                </div>
+                <div class="analytics-bar-list" id="topCompaniesList"></div>
+            </div>
+
+            <div class="analytics-card">
+                <div class="analytics-card-header">
+                    <h3>⚡ Most In-Demand Skills</h3>
+                    <span>Required technical stack for 2026</span>
+                </div>
+                <div class="skills-cloud" id="topSkillsCloud"></div>
+            </div>
+
+            <div class="analytics-card">
+                <div class="analytics-card-header">
+                    <h3>📍 Top Hiring Hubs in India</h3>
+                    <span>City-wise availability</span>
+                </div>
+                <div class="analytics-bar-list" id="topLocationsList"></div>
+            </div>
+
+            <div class="analytics-card">
+                <div class="analytics-card-header">
+                    <h3>💼 Work Arrangement Breakdown</h3>
+                    <span>Online vs Onsite vs Hybrid</span>
+                </div>
+                <div class="work-mode-breakdown" id="workModeBreakdown"></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ================= PEER REFERRAL NETWORK ================= -->
+<section id="referrals" class="page">
+    <div class="section">
+        <div class="section-title">
+            <div>
+                <h2>🤝 Student & Alumni Referral Network</h2>
+                <span>Connect with placed seniors and alumni for direct employee referrals</span>
+            </div>
+            <button class="primary-btn" onclick="openPostReferralModal()">+ Offer a Referral</button>
+        </div>
+
+        <div class="referral-banner">
+            <div class="referral-banner-icon">🎯</div>
+            <div>
+                <strong>Alumni / Placed Senior?</strong> Help juniors at Sri Vasavi Engineering College crack top roles by posting your employee referral openings.
+            </div>
+        </div>
+
+        <div class="referral-grid" id="referralContainer"></div>
+    </div>
+</section>
+
 <!-- ================= ADMIN ================= -->
 <section id="admin" class="page">
     <div class="admin-login" id="adminLoginPanel">
@@ -277,59 +482,101 @@
 
     <div class="admin-container" id="adminDashboard" hidden>
         <div class="admin-header">
-            <h2>👨‍💻 Developer / Admin Dashboard</h2>
+            <div>
+                <h2>👨‍💻 Founder & Admin Console</h2>
+                <p class="company" style="margin-top:2px;">Manage live feeds, publish opportunities, and review student accounts.</p>
+            </div>
             <button class="logout-btn" onclick="adminLogout()">Logout</button>
         </div>
 
-        <p class="admin-note">Listings from configured Greenhouse and Lever boards sync daily. Manual posts need an application closing date.</p>
-        <p class="admin-warning">Klaviyo, ID.me, Stripe, Spotify, and Palantir boards are configured for scheduled imports. Openings appear only after a successful feed sync.</p>
+        <!-- Admin Tab Navigation -->
+        <div class="admin-tab-nav" role="tablist">
+            <button class="admin-tab-btn active" id="tabBtnManage" type="button" onclick="switchAdminTab('manage')">
+                📋 Manage Listings (<span id="adminTabInternshipCount">0</span>)
+            </button>
+            <button class="admin-tab-btn" id="tabBtnAdd" type="button" onclick="switchAdminTab('add')">
+                ➕ Publish Internship
+            </button>
+            <button class="admin-tab-btn" id="tabBtnStudents" type="button" onclick="switchAdminTab('students')">
+                👥 Student Approvals (<span id="adminTabPendingCount">0</span>)
+            </button>
+        </div>
 
-        <div class="admin-grid">
-            <div><label class="admin-label" for="adminTitle">Internship Title</label><input class="admin-input" id="adminTitle" placeholder="Machine Learning Intern"></div>
-            <div><label class="admin-label" for="adminCompany">Company</label><input class="admin-input" id="adminCompany" placeholder="Company Name"></div>
-            <div>
-                <label class="admin-label" for="adminType">Type</label>
-                <select class="admin-input" id="adminType"><option>Online</option><option>Offline</option></select>
-            </div>
-            <div>
-                <label class="admin-label" for="adminBranch">Branch</label>
-                <select class="admin-input" id="adminBranch">
-                    <option>Computer Science</option>
-                    <option>Artificial Intelligence</option>
-                    <option>Information Technology</option>
-                    <option>Electronics & Communication</option>
-                    <option>Mechanical Engineering</option>
-                    <option>Civil Engineering</option>
+        <!-- PANE 1: MANAGE LISTINGS -->
+        <div id="adminPaneManage" class="admin-pane">
+            <div class="admin-toolbar">
+                <input type="text" id="adminSearchInput" class="admin-search-field" placeholder="🔍 Search by role title, company, or location..." oninput="displayAdminInternships()">
+                <select id="adminFilterType" class="admin-filter-select" onchange="displayAdminInternships()">
+                    <option value="all">All Modes</option>
+                    <option value="Online">🌐 Online</option>
+                    <option value="Offline">🏢 Offline</option>
+                    <option value="Hybrid">🔄 Hybrid</option>
                 </select>
             </div>
-            <div><label class="admin-label" for="adminSpecialization">Specialization</label><input class="admin-input" id="adminSpecialization" placeholder="Machine Learning"></div>
-            <div><label class="admin-label" for="adminLocation">Location</label><input class="admin-input" id="adminLocation" placeholder="Hyderabad"></div>
-            <div><label class="admin-label" for="adminStipend">Stipend</label><input class="admin-input" id="adminStipend" placeholder="₹15,000/month"></div>
-            <div><label class="admin-label" for="adminDuration">Duration</label><input class="admin-input" id="adminDuration" placeholder="3 Months"></div>
-            <div><label class="admin-label" for="adminClosingDate">Application closing date</label><input class="admin-input" id="adminClosingDate" type="date" required></div>
-            <div class="full"><label class="admin-label" for="adminSkills">Skills</label><input class="admin-input" id="adminSkills" placeholder="Python, SQL, Machine Learning"></div>
-            <div class="full"><label class="admin-label" for="adminLink">Application Link</label><input class="admin-input" id="adminLink" type="url" inputmode="url" placeholder="https://example.com/apply" required></div>
+
+            <div class="admin-list-meta">
+                <span id="adminInternshipCount">Loading listings...</span>
+                <div class="admin-pagination" id="adminPaginationControls"></div>
+            </div>
+
+            <div id="adminInternshipList" class="admin-compact-grid"></div>
         </div>
 
-        <button class="primary-btn mt-20" onclick="addInternship()">+ Publish Internship</button>
+        <!-- PANE 2: PUBLISH NEW INTERNSHIP -->
+        <div id="adminPaneAdd" class="admin-pane" hidden>
+            <div class="admin-pane-banner">
+                <h3 style="margin-bottom:4px;">Post a New Internship Opportunity</h3>
+                <p class="company">Manual listings are shared immediately across all devices with real-time Firebase sync.</p>
+            </div>
 
-        <div class="section-title mt-35">
-            <h3>Manage Internships</h3>
-            <span id="adminInternshipCount"></span>
-        </div>
-        <div id="adminInternshipList"></div>
+            <div class="admin-grid" style="margin-top:16px;">
+                <div><label class="admin-label" for="adminTitle">Internship Title *</label><input class="admin-input" id="adminTitle" placeholder="Machine Learning Intern" required></div>
+                <div><label class="admin-label" for="adminCompany">Company *</label><input class="admin-input" id="adminCompany" placeholder="Company Name" required></div>
+                <div>
+                    <label class="admin-label" for="adminType">Type</label>
+                    <select class="admin-input" id="adminType"><option>Online</option><option>Offline</option><option>Hybrid</option></select>
+                </div>
+                <div>
+                    <label class="admin-label" for="adminBranch">Branch</label>
+                    <select class="admin-input" id="adminBranch">
+                        <option>Computer Science</option>
+                        <option>Artificial Intelligence</option>
+                        <option>Information Technology</option>
+                        <option>Electronics & Communication</option>
+                        <option>Mechanical Engineering</option>
+                        <option>Civil Engineering</option>
+                    </select>
+                </div>
+                <div><label class="admin-label" for="adminSpecialization">Specialization *</label><input class="admin-input" id="adminSpecialization" placeholder="Machine Learning" required></div>
+                <div><label class="admin-label" for="adminLocation">Location</label><input class="admin-input" id="adminLocation" placeholder="Hyderabad"></div>
+                <div><label class="admin-label" for="adminStipend">Stipend</label><input class="admin-input" id="adminStipend" placeholder="₹15,000/month"></div>
+                <div><label class="admin-label" for="adminDuration">Duration</label><input class="admin-input" id="adminDuration" placeholder="3 Months"></div>
+                <div><label class="admin-label" for="adminClosingDate">Application closing date *</label><input class="admin-input" id="adminClosingDate" type="date" required></div>
+                <div class="full"><label class="admin-label" for="adminSkills">Skills</label><input class="admin-input" id="adminSkills" placeholder="Python, SQL, Machine Learning"></div>
+                <div class="full"><label class="admin-label" for="adminLink">Application Link *</label><input class="admin-input" id="adminLink" type="url" inputmode="url" placeholder="https://example.com/apply" required></div>
+            </div>
 
-        <div class="section-title mt-35">
-            <h3>Student Registrations</h3>
-            <span>Admin approval required</span>
+            <button class="primary-btn mt-20" onclick="addInternship()">+ Publish Internship</button>
         </div>
-        <div id="studentRequestList"></div>
 
-        <div class="section-title mt-35">
-            <h3>Approved Users</h3>
-            <span id="approvedStudentCount"></span>
+        <!-- PANE 3: STUDENT APPROVALS -->
+        <div id="adminPaneStudents" class="admin-pane" hidden>
+            <div class="section-title">
+                <div>
+                    <h3>Pending Student Registrations</h3>
+                    <span>Approval required before students can sign in</span>
+                </div>
+            </div>
+            <div id="studentRequestList"></div>
+
+            <div class="section-title mt-35">
+                <div>
+                    <h3>Approved Students Directory</h3>
+                    <span id="approvedStudentCount"></span>
+                </div>
+            </div>
+            <div id="approvedStudentList"></div>
         </div>
-        <div id="approvedStudentList"></div>
     </div>
 </section>
 
@@ -338,6 +585,106 @@
     <div class="modal-content">
         <button class="close" type="button" aria-label="Close internship details" onclick="closeModal()">×</button>
         <div id="modalBody"></div>
+    </div>
+</div>
+
+<!-- ================= ADD APPLICATION MODAL ================= -->
+<div class="modal" id="addTrackerModal" role="dialog" aria-modal="true" aria-labelledby="addTrackerTitle">
+    <div class="modal-content">
+        <button class="close" type="button" aria-label="Close tracking modal" onclick="closeAddTrackerModal()">×</button>
+        <h2 id="addTrackerTitle" style="color:#0f766e;margin-bottom:6px;">📋 Track New Internship Application</h2>
+        <p class="company mb-20">Record an internship you applied for to keep tabs on test links, HR calls, and offers.</p>
+        <form onsubmit="event.preventDefault(); submitCustomTracker(event);">
+            <div class="admin-grid">
+                <div><label class="admin-label" for="trackCompany">Company Name *</label><input class="admin-input" id="trackCompany" required placeholder="e.g. Google, TCS, Infosys"></div>
+                <div><label class="admin-label" for="trackTitle">Role Title *</label><input class="admin-input" id="trackTitle" required placeholder="e.g. SDE Intern"></div>
+                <div>
+                    <label class="admin-label" for="trackStatus">Current Stage</label>
+                    <select class="admin-input" id="trackStatus">
+                        <option value="Applied">📤 Applied</option>
+                        <option value="Interviewing">🗣️ Interviewing / Assessment</option>
+                        <option value="Offer">🎉 Offer Received</option>
+                        <option value="Saved">📌 Saved for Later</option>
+                        <option value="Rejected">❌ Rejected</option>
+                    </select>
+                </div>
+                <div><label class="admin-label" for="trackDate">Applied Date</label><input class="admin-input" id="trackDate" type="date"></div>
+                <div class="full"><label class="admin-label" for="trackLink">Application / Portal Link</label><input class="admin-input" id="trackLink" type="url" placeholder="https://careers..."></div>
+                <div class="full"><label class="admin-label" for="trackNotes">Notes & Follow-ups</label><textarea class="admin-input" id="trackNotes" rows="3" placeholder="e.g. Completed HackerRank coding round with 100/100. Tech interview on Wednesday."></textarea></div>
+            </div>
+            <button class="primary-btn mt-20 full-width" type="submit">Save to Application Tracker</button>
+        </form>
+    </div>
+</div>
+
+<!-- ================= COMPANY REVIEWS MODAL ================= -->
+<div class="modal" id="companyReviewsModal" role="dialog" aria-modal="true" aria-labelledby="reviewsModalTitle">
+    <div class="modal-content" style="max-width:760px">
+        <button class="close" type="button" aria-label="Close reviews" onclick="closeReviewsModal()">×</button>
+        <div id="companyReviewsHeader"></div>
+        <div class="reviews-tabs">
+            <button class="reviews-tab-btn active" id="tabViewReviews" onclick="switchReviewsTab('view')">Student Reviews (<span id="companyReviewsCount">0</span>)</button>
+            <button class="reviews-tab-btn" id="tabWriteReview" onclick="switchReviewsTab('write')">✍️ Write a Review</button>
+        </div>
+        <div id="reviewsViewPane">
+            <div id="companyReviewsList" class="reviews-list-container"></div>
+        </div>
+        <div id="reviewsWritePane" hidden>
+            <form onsubmit="event.preventDefault(); submitCompanyReview(event);" class="review-form">
+                <div class="form-group">
+                    <label for="reviewRating">Overall Rating (1 to 5 Stars)</label>
+                    <select id="reviewRating" required>
+                        <option value="5">⭐⭐⭐⭐⭐ 5 - Excellent</option>
+                        <option value="4" selected>⭐⭐⭐⭐ 4 - Very Good</option>
+                        <option value="3">⭐⭐⭐ 3 - Average</option>
+                        <option value="2">⭐⭐ 2 - Below Average</option>
+                        <option value="1">⭐ 1 - Poor</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="reviewDifficulty">Interview Difficulty</label>
+                    <select id="reviewDifficulty" required>
+                        <option value="Easy">🟢 Easy (Basic concepts & direct questions)</option>
+                        <option value="Medium" selected>🟡 Medium (DSA, core subjects & project discussion)</option>
+                        <option value="Hard">🔴 Hard (Advanced problem solving & system design)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="reviewRole">Role Reviewed</label>
+                    <input type="text" id="reviewRole" required placeholder="e.g. SDE Intern, Frontend Intern">
+                </div>
+                <div class="form-group">
+                    <label for="reviewComment">Work Culture & Experience</label>
+                    <textarea class="admin-input" id="reviewComment" rows="3" required placeholder="How was the mentorship, work environment, and stipend transparency?"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="reviewTips">Preparation Tips for SVEC Juniors</label>
+                    <textarea class="admin-input" id="reviewTips" rows="2" placeholder="e.g. Focus on Java OOPs, LeetCode Easy-Medium strings, and DBMS SQL queries."></textarea>
+                </div>
+                <button class="primary-btn full-width" type="submit">Submit Company Review</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ================= POST REFERRAL MODAL ================= -->
+<div class="modal" id="postReferralModal" role="dialog" aria-modal="true" aria-labelledby="postReferralTitle">
+    <div class="modal-content">
+        <button class="close" type="button" aria-label="Close referral modal" onclick="closePostReferralModal()">×</button>
+        <h2 id="postReferralTitle" style="color:#0f766e;margin-bottom:6px;">🤝 Offer a Student Referral</h2>
+        <p class="company mb-20">Help students and freshers from college get referred for active roles at your company.</p>
+        <form onsubmit="event.preventDefault(); submitReferral(event);">
+            <div class="admin-grid">
+                <div><label class="admin-label" for="refCompany">Company Name *</label><input class="admin-input" id="refCompany" required placeholder="e.g. Microsoft, Infosys, Amazon"></div>
+                <div><label class="admin-label" for="refRole">Position / Role *</label><input class="admin-input" id="refRole" required placeholder="e.g. Graduate Trainee / SDE Intern"></div>
+                <div><label class="admin-label" for="refName">Your Name & Batch *</label><input class="admin-input" id="refName" required placeholder="e.g. Harsha K. (2024 Alumnus)"></div>
+                <div><label class="admin-label" for="refBatch">Eligible Passing Batches</label><input class="admin-input" id="refBatch" placeholder="e.g. 2025 & 2026 batches"></div>
+                <div class="full"><label class="admin-label" for="refSkills">Key Skills Required</label><input class="admin-input" id="refSkills" placeholder="e.g. Python, SQL, React, Git"></div>
+                <div class="full"><label class="admin-label" for="refContact">Referral Contact / LinkedIn Link *</label><input class="admin-input" id="refContact" required placeholder="e.g. https://linkedin.com/in/... or student@alumni.in"></div>
+                <div class="full"><label class="admin-label" for="refInstructions">Instructions for Applicants</label><textarea class="admin-input" id="refInstructions" rows="2" placeholder="e.g. DM me on LinkedIn with your 1-page resume and GitHub link. Mention SVEC Alumni referral."></textarea></div>
+            </div>
+            <button class="primary-btn mt-20 full-width" type="submit">Post Referral Opening</button>
+        </form>
     </div>
 </div>
 

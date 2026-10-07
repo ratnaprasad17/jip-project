@@ -60,6 +60,13 @@ async function syncInternships(database = getDatabase()) {
     const publishedCount = Array.isArray(transaction.snapshot.val())
         ? transaction.snapshot.val().length
         : 0;
+
+    const metadataRef = database.ref("metadata");
+    await metadataRef.update({
+        configuredJobBoards: sources.length,
+        lastSync: new Date().toISOString()
+    });
+
     console.log(`Internship sync completed. Published catalog contains ${publishedCount} listings.`);
 }
 
