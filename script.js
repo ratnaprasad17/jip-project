@@ -75,7 +75,9 @@ function normalizeImportedListing(internship) {
     if (!internship._sourceKey) return internship;
     return {
         ...internship,
-        type: getWorkTypeFromLocation(internship.location),
+        type: ["Online", "Offline", "Hybrid"].includes(internship.type)
+            ? internship.type
+            : getWorkTypeFromLocation(internship.location),
         branch: internship.branch === "All branches" ? "Not specified" : internship.branch,
         description: getCachedRoleDescription(internship.description)
     };

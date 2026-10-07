@@ -53,21 +53,21 @@ function answerQuestion(question, listings, previousAssistantMessage) {
     }
     if (/\b(apply|application|apply link)\b/.test(query)) {
         return {
-            text: "Open a listing's Details or Apply action. Apply opens the original HTTPS application page in a new tab. If no application link is available, the listing will say so."
+            text: "Simple ga: internship card lo Details or Apply click cheyyi. Apply employer page open chestundi. Link lekapothe, listing lo available ani chupistundi."
         };
     }
     if (/\b(saved internships?|saved jobs?|saved roles?|favorites?|favourites?|bookmarks?|save (?:this|an? internship|a job))\b/.test(query)) {
         const savedListings = listings.filter(listing => listing.isSaved);
         return savedListings.length
             ? { text: `You have ${savedListings.length} saved internship${savedListings.length === 1 ? "" : "s"}.`, listings: savedListings.slice(0, 5) }
-            : { text: "You haven't saved any internships yet. Use the heart button on a listing; saved roles appear under Saved in the navigation." };
+            : { text: "Inka internships save cheyyaledu. Card meeda heart click cheyyi; avi menu lo Saved kindha kanipistayi." };
     }
     if (/\b(profile|edit my details|update my details|my account details)\b/.test(query)) {
-        return { text: "Open My Profile and choose Edit profile to update your name, phone, college/branch, roll number, skills, or preferred location. Profile changes save to your student account." };
+        return { text: "My Profile open chesi Edit profile click cheyyi. Name, phone, college, roll number, skills, location marchi Save profile nokku." };
     }
     if (/\b(register|registration|sign up|account|approval|approve|login|log in|password)\b/.test(query)) {
         return {
-            text: "Students register with their college details and an email/password. A site administrator must approve the account before student login is enabled. Use Forgot password on the login screen to request a reset email."
+            text: "New student ayithe Register here click chesi details fill cheyyi. Admin approve chesaka login avvachu. Password marchipothe Forgot password click cheyyi." 
         };
     }
     if (/\b(match|matching|recommend|recommendation|score|preferences)\b/.test(query)) {
@@ -75,7 +75,7 @@ function answerQuestion(question, listings, previousAssistantMessage) {
             return { text: "I can't calculate recommendations yet because no current internships are loaded. Try again after the listings sync to this site." };
         }
         return {
-            text: "Matches use the preferences on the Find Internship page: type adds 35 points, branch 25, specialization 30, location 10, and each matching skill 5 (capped at 100). Graduation year isn't used because listings don't currently provide eligibility-year data.",
+            text: "Find Internship page lo branch, skills, location, work mode select cheyyi. Avi match ayye roles ki ekkuva score vastundi. Graduation-year info feeds lo ledu.",
             listings: rankListings(listings).slice(0, 3)
         };
     }
@@ -215,7 +215,7 @@ function answerQuestion(question, listings, previousAssistantMessage) {
     }
 
     return {
-        text: "I couldn't match that to verified site information. Try a company, role title, skill, location, saved internships, profile, application, registration, or matching question. I won't guess at details that aren't in the employer feed."
+        text: "Ee question ki site data lo answer dorakaledu. Company, role, skill, India, online, saved internships, profile, apply gurinchi adugu. Employer feed lo leni details ni guess cheyyanu."
     };
 }
 

@@ -19,7 +19,7 @@ const source = { key: "sample-company", company: "Sample Company" };
 test("configured internship feeds have unique keys and complete source metadata", () => {
     assert.equal(new Set(sources.map(item => item.key)).size, sources.length);
     assert.ok(sources.every(item => item.key && item.company && item.board && ["greenhouse", "lever", "ashby"].includes(item.provider)));
-    assert.equal(sources.length, 25);
+    assert.equal(sources.length, 26);
 });
 
 test("service account validation fails clearly for missing or invalid secrets", () => {
@@ -137,6 +137,27 @@ test("Greenhouse feeds may allow their exact employer-owned application host", (
     ]);
 
     assert.deepEqual(listings.map(listing => listing._sourceId), ["22"]);
+});
+
+test("Groww source permits its official Greenhouse application host only", () => {
+    const groww = sources.find(source => source.key === "groww-greenhouse");
+    const listings = normalizeGreenhouseJobs(groww, [
+        {
+            id: 24,
+            title: "Video Editor Intern",
+            location: { name: "Bengaluru-VTP, India" },
+            absolute_url: "https://job-boards.eu.greenhouse.io/groww/jobs/24"
+        },
+        {
+            id: 25,
+            title: "Engineering Intern",
+            location: { name: "Bengaluru, India" },
+            absolute_url: "https://untrusted.example/jobs/25"
+        }
+    ]);
+
+    assert.deepEqual(listings.map(listing => listing._sourceId), ["24"]);
+    assert.match(listings[0].location, /India/);
 });
 
 test("sync preserves manual posts and keeps failed-source posts", () => {

@@ -18,6 +18,7 @@
   { "key": "databricks-greenhouse", "provider": "greenhouse", "board": "databricks", "company": "Databricks", "applicationHosts": ["databricks.com"] },
   { "key": "datadog-greenhouse", "provider": "greenhouse", "board": "datadog", "company": "Datadog", "applicationHosts": ["careers.datadoghq.com"] },
   { "key": "duolingo-greenhouse", "provider": "greenhouse", "board": "duolingo", "company": "Duolingo", "applicationHosts": ["careers.duolingo.com"] },
+  { "key": "groww-greenhouse", "provider": "greenhouse", "board": "groww", "company": "Groww", "applicationHosts": ["job-boards.eu.greenhouse.io"] },
   { "key": "notion-ashby", "provider": "ashby", "board": "notion", "company": "Notion" },
   { "key": "ramp-ashby", "provider": "ashby", "board": "ramp", "company": "Ramp" },
   { "key": "perplexity-ashby", "provider": "ashby", "board": "perplexity", "company": "Perplexity" },
