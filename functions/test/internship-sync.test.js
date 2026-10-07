@@ -3,6 +3,7 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 const { loadServiceAccount } = require("../index");
+const sources = require("../sources.json");
 const {
     getDateInTimeZone,
     getPostedDate,
@@ -13,6 +14,12 @@ const {
 } = require("../internship-sync");
 
 const source = { key: "sample-company", company: "Sample Company" };
+
+test("configured internship feeds have unique keys and complete source metadata", () => {
+    assert.equal(new Set(sources.map(item => item.key)).size, sources.length);
+    assert.ok(sources.every(item => item.key && item.company && item.board && ["greenhouse", "lever"].includes(item.provider)));
+    assert.equal(sources.length, 11);
+});
 
 test("service account validation fails clearly for missing or invalid secrets", () => {
     assert.throws(() => loadServiceAccount({}), /FIREBASE_SERVICE_ACCOUNT is not set/);

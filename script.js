@@ -83,8 +83,10 @@ function normalizeImportedListing(internship) {
 
 function getInternshipChatData() {
     return sortIndiaFirst(internships).map(internship => ({
+        id: internship.id,
         title: internship.title,
         company: internship.company,
+        isSaved: bookmarks.some(bookmarkId => String(bookmarkId) === String(internship.id)),
         isIndia: isIndiaBasedListing(internship),
         type: internship.type,
         branch: internship.branch === "All branches" ? "Not specified" : internship.branch,
@@ -170,12 +172,78 @@ function updateStudentProfile() {
     document.getElementById("profileName").innerText = student.name || "Student";
     document.getElementById("profileEmail").innerText = student.email || "";
     document.getElementById("profileAvatar").innerText = (student.name || "S").charAt(0).toUpperCase();
-    document.getElementById("profileDetails").innerHTML = `
-        <div><span>Phone</span><strong>${escapeHTML(student.phone || "Not added")}</strong></div>
-        <div><span>College / Branch</span><strong>${escapeHTML(student.branch || "Not added")}</strong></div>
-        <div><span>Roll Number</span><strong>${escapeHTML(student.rollNumber || "Not added")}</strong></div>
-        <div><span>Account Status</span><strong class="profile-status">Approved</strong></div>
-    `;
+    const profileFields = [
+        ["Phone", student.phone],
+        ["College / Branch", student.branch],
+        ["Roll Number", student.rollNumber],
+        ["Skills", Array.isArray(student.skills) ? student.skills.join(", ") : student.skills],
+        ["Preferred location", student.preferredLocation],
+        ["Account Status", student.status === "approved" ? "Approved" : "Pending"]
+    ];
+    document.getElementById("profileDetails").innerHTML = profileFields.map(([label, value]) =>
+        `<div><span>${escapeHTML(label)}</span><strong>${escapeHTML(value || "Not added")}</strong></div>`
+    ).join("");
+}
+
+function beginProfileEdit() {
+    if (!currentStudent) return;
+    document.getElementById("profileMessage").innerText = "";
+    document.getElementById("profileNameInput").value = currentStudent.name || "";
+    document.getElementById("profilePhoneInput").value = currentStudent.phone || "";
+    document.getElementById("profileBranchInput").value = currentStudent.branch || "";
+    document.getElementById("profileRollNumberInput").value = currentStudent.rollNumber || "";
+    document.getElementById("profileSkillsInput").value = Array.isArray(currentStudent.skills)
+        ? currentStudent.skills.join(", ")
+        : currentStudent.skills || "";
+    document.getElementById("profileLocationInput").value = currentStudent.preferredLocation || "";
+    document.getElementById("profileDetails").hidden = true;
+    document.getElementById("profileEditToggle").hidden = true;
+    document.getElementById("profileEditForm").hidden = false;
+    document.getElementById("profileNameInput").focus();
+}
+
+function cancelProfileEdit() {
+    document.getElementById("profileEditForm").hidden = true;
+    document.getElementById("profileDetails").hidden = false;
+    document.getElementById("profileEditToggle").hidden = false;
+    document.getElementById("profileMessage").innerText = "";
+}
+
+async function saveStudentProfile(event) {
+    const form = event.currentTarget;
+    const saveButton = form.querySelector("button[type='submit']");
+    const message = document.getElementById("profileMessage");
+    const user = firebase.apps.length ? firebase.auth().currentUser : null;
+    if (!user || !currentStudent) {
+        message.innerText = "Sign in again before updating your profile.";
+        return;
+    }
+
+    const updates = {
+        name: document.getElementById("profileNameInput").value.trim(),
+        phone: document.getElementById("profilePhoneInput").value.trim(),
+        branch: document.getElementById("profileBranchInput").value.trim(),
+        rollNumber: document.getElementById("profileRollNumberInput").value.trim(),
+        skills: document.getElementById("profileSkillsInput").value.trim(),
+        preferredLocation: document.getElementById("profileLocationInput").value.trim()
+    };
+    if (!updates.name) return;
+
+    saveButton.disabled = true;
+    saveButton.innerText = "Saving...";
+    message.innerText = "";
+    try {
+        await firebase.database().ref(`students/${user.uid}`).update(updates);
+        currentStudent = { ...currentStudent, ...updates };
+        updateStudentProfile();
+        cancelProfileEdit();
+        message.innerText = "Profile updated.";
+    } catch (error) {
+        message.innerText = getFirebaseErrorMessage(error);
+    } finally {
+        saveButton.disabled = false;
+        saveButton.innerText = "Save profile";
+    }
 }
 
 function getLocalDateString(date = new Date()) {
@@ -499,6 +567,7 @@ function refreshInternshipViews() {
     publishInternshipUpdates();
     displayInternships();
     displayFeatured();
+    displaySavedInternships();
     displayAdminInternships();
     updateHomeStats();
 }
@@ -553,6 +622,7 @@ try {
 }
 removeExpiredInternships();
 localStorage.setItem("internships", JSON.stringify(internships));
+updateSavedCount();
 
 /* =========================================================
    ADMIN AUTH
@@ -729,6 +799,7 @@ function showPage(pageId) {
         displayFeatured();
         updateHomeStats();
     }
+    if (pageId === "favorites") displaySavedInternships();
     if (pageId === "admin") {
         updateAdminView();
     }
@@ -759,14 +830,21 @@ function displayFeatured() {
         const card = document.createElement("div");
         card.className = "feature-card";
         const workMode = hasPublishedValue(internship.type) ? internship.type : "Work mode not listed";
+        const isSaved = bookmarks.some(bookmarkId => String(bookmarkId) === String(internship.id));
         card.innerHTML = `
-            <div style="font-size:30px">🚀</div>
+            <div class="feature-card-top">
+                <span aria-hidden="true">🚀</span>
+                <button class="bookmark feature-bookmark" type="button" onclick="bookmark(${Number(internship.id)})"
+                        aria-label="${isSaved ? "Remove" : "Save"} ${escapeHTML(internship.title)}" aria-pressed="${isSaved}">
+                    ${isSaved ? "♥" : "♡"}
+                </button>
+            </div>
             <h3>${escapeHTML(internship.title)}</h3>
             <div class="company">${escapeHTML(internship.company)}</div>
             ${hasPublishedValue(internship.location) ? `<div class="feature-info">📍 ${escapeHTML(internship.location)}</div>` : ""}
             ${hasPublishedValue(internship.stipend) ? `<div class="feature-info">💰 ${escapeHTML(internship.stipend)}</div>` : ""}
             <div class="feature-info">${escapeHTML(workMode)}</div>
-            <button onclick="showDetails(${Number(internship.id)})">View Internship</button>
+            <button class="feature-view" onclick="showDetails(${Number(internship.id)})">View Internship</button>
         `;
         container.appendChild(card);
     });
@@ -824,8 +902,9 @@ function createCard(internship) {
         <div class="card">
             <div class="card-top">
                 <div class="company-logo">💼</div>
-                <button class="bookmark" onclick="bookmark(${safeId})"
-                        title="Save internship" aria-label="Save ${escapeHTML(internship.title)}">
+                <button class="bookmark" type="button" onclick="bookmark(${safeId})"
+                        title="Save internship" aria-label="${bookmarks.some(bookmarkId => String(bookmarkId) === String(internship.id)) ? "Remove" : "Save"} ${escapeHTML(internship.title)}"
+                        aria-pressed="${bookmarks.some(bookmarkId => String(bookmarkId) === String(internship.id))}">
                     ${bookmarks.some(bookmarkId => String(bookmarkId) === String(internship.id)) ? "♥" : "♡"}
                 </button>
             </div>
@@ -1043,7 +1122,28 @@ function bookmark(id) {
     else bookmarks.push(id);
     localStorage.setItem("bookmarks", JSON.stringify(bookmarks));
     publishInternshipUpdates();
+    updateSavedCount();
+    displaySavedInternships();
+    displayFeatured();
     displayInternships();
+}
+
+function updateSavedCount() {
+    const count = bookmarks.length;
+    const navCount = document.getElementById("savedCount");
+    const pageCount = document.getElementById("savedInternshipCount");
+    if (navCount) navCount.innerText = String(count);
+    if (pageCount) pageCount.innerText = `${count} ${count === 1 ? "internship" : "internships"} saved`;
+}
+
+function displaySavedInternships() {
+    const container = document.getElementById("savedInternshipContainer");
+    if (!container) return;
+    const saved = bookmarks.map(findInternshipById).filter(Boolean);
+    container.innerHTML = saved.length
+        ? saved.map(createCard).join("")
+        : "<p class=\"company\">No saved internships yet. Use the heart on a listing to save it here.</p>";
+    updateSavedCount();
 }
 
 /* =========================================================
@@ -1227,6 +1327,8 @@ Object.assign(window, {
     apply,
     approveStudent,
     bookmark,
+    beginProfileEdit,
+    cancelProfileEdit,
     closeModal,
     deleteInternship,
     displayInternships,
@@ -1241,6 +1343,7 @@ Object.assign(window, {
     showPage,
     showRegistration,
     showStudentLogin,
+    saveStudentProfile,
     studentLogin,
     studentLogout,
     togglePassword

@@ -2,6 +2,12 @@
   { "key": "klaviyo-greenhouse", "provider": "greenhouse", "board": "klaviyocampus", "company": "Klaviyo" },
   { "key": "idme-greenhouse", "provider": "greenhouse", "board": "idmeuniversityrecruiting", "company": "ID.me" },
   { "key": "stripe-greenhouse", "provider": "greenhouse", "board": "stripe", "company": "Stripe" },
+  { "key": "figma-greenhouse", "provider": "greenhouse", "board": "figma", "company": "Figma" },
+  { "key": "robinhood-greenhouse", "provider": "greenhouse", "board": "robinhood", "company": "Robinhood" },
+  { "key": "scaleai-greenhouse", "provider": "greenhouse", "board": "scaleai", "company": "Scale AI" },
+  { "key": "cloudflare-greenhouse", "provider": "greenhouse", "board": "cloudflare", "company": "Cloudflare" },
+  { "key": "anduril-greenhouse", "provider": "greenhouse", "board": "andurilindustries", "company": "Anduril" },
+  { "key": "vercel-greenhouse", "provider": "greenhouse", "board": "vercel", "company": "Vercel" },
   { "key": "spotify-lever", "provider": "lever", "board": "spotify", "company": "Spotify" },
   { "key": "palantir-lever", "provider": "lever", "board": "palantir", "company": "Palantir" }
 ]

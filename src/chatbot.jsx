@@ -36,7 +36,7 @@ function rankListings(listings) {
 }
 
 function answerQuestion(question, listings, previousAssistantMessage) {
-    const query = question.toLowerCase();
+    const query = question.toLowerCase().replace(/[’']/g, "'").trim();
     if (/\b(only one|just one|that's all|any more|more\?)\b/.test(query) && previousAssistantMessage?.listings?.length) {
         const previousText = previousAssistantMessage.text.toLowerCase();
         if (previousText.includes("india-based")) {
@@ -56,6 +56,15 @@ function answerQuestion(question, listings, previousAssistantMessage) {
             text: "Open a listing's Details or Apply action. Apply opens the original HTTPS application page in a new tab. If no application link is available, the listing will say so."
         };
     }
+    if (/\b(saved internships?|saved jobs?|saved roles?|favorites?|favourites?|bookmarks?|save (?:this|an? internship|a job))\b/.test(query)) {
+        const savedListings = listings.filter(listing => listing.isSaved);
+        return savedListings.length
+            ? { text: `You have ${savedListings.length} saved internship${savedListings.length === 1 ? "" : "s"}.`, listings: savedListings.slice(0, 5) }
+            : { text: "You haven't saved any internships yet. Use the heart button on a listing; saved roles appear under Saved in the navigation." };
+    }
+    if (/\b(profile|edit my details|update my details|my account details)\b/.test(query)) {
+        return { text: "Open My Profile and choose Edit profile to update your name, phone, college/branch, roll number, skills, or preferred location. Profile changes save to your student account." };
+    }
     if (/\b(register|registration|sign up|account|approval|approve|login|log in|password)\b/.test(query)) {
         return {
             text: "Students register with their college details and an email/password. A site administrator must approve the account before student login is enabled. Use Forgot password on the login screen to request a reset email."
@@ -71,6 +80,23 @@ function answerQuestion(question, listings, previousAssistantMessage) {
         };
     }
 
+    if (/\b(source|sources|job board|job boards|updated|refresh|sync|new listings)\b/.test(query)) {
+        const companies = [...new Set(listings.map(listing => listing.company).filter(Boolean))].sort();
+        return listings.length
+            ? { text: `The site currently has ${listings.length} synced listings from ${companies.length} employers: ${companies.join(", ")}. Feeds refresh through the scheduled sync; availability depends on each employer's live board.` }
+            : { text: "No internship listings are currently loaded. The scheduled feed must run successfully before I can list employers or openings." };
+    }
+
+    if (/\b(latest|newest|recent|most recent)\b/.test(query)) {
+        const recentListings = [...listings].sort((left, right) =>
+            String(right.postedDate || "").localeCompare(String(left.postedDate || ""))
+        );
+        const withDates = recentListings.filter(listing => listing.postedDate);
+        return withDates.length
+            ? { text: "Here are the most recently dated listings. Dates are shown only when the employer feed supplies them.", listings: withDates.slice(0, 5) }
+            : { text: "The current feeds don't provide posting dates, so I can't reliably rank these by recency.", listings: listings.slice(0, 3) };
+    }
+
     const companyMatch = listings.filter(listing =>
         listing.company && query.includes(listing.company.toLowerCase())
     );
@@ -82,6 +108,13 @@ function answerQuestion(question, listings, previousAssistantMessage) {
                 : { text: `${companyMatch[0].company}'s feed did not provide an application closing date. Check the original application page before applying.`, listings: companyMatch.slice(0, 5) };
         }
         return { text: `Here are the current listings from ${companyMatch[0].company}.`, listings: companyMatch.slice(0, 5) };
+    }
+
+    const titleMatches = listings.filter(listing =>
+        listing.title && query.includes(listing.title.toLowerCase())
+    );
+    if (titleMatches.length) {
+        return { text: "Here are the current listings matching that role title.", listings: titleMatches.slice(0, 5) };
     }
 
     if (/\b(india|indian|in india)\b/.test(query)) {
@@ -178,11 +211,11 @@ function answerQuestion(question, listings, previousAssistantMessage) {
             : { text: "There are no current internships loaded on the site right now. The scheduled feed needs to run and publish its results before I can recommend roles." };
     }
     if (/\b(hello|hi|hey|help)\b/.test(query)) {
-        return { text: "Hi! I can search the current internships, explain matching, and answer questions about applying or student accounts." };
+        return { text: "Hi, I can search live listings by company, title, skill, location, or work mode; show saved internships; explain matching; and guide you through your profile, registration, and applying." };
     }
 
     return {
-        text: "I don't have enough verified information on this site to answer that. I can help with current listings, online/on-site roles, stipends, matching rules, student registration, and applying."
+        text: "I couldn't match that to verified site information. Try a company, role title, skill, location, saved internships, profile, application, registration, or matching question. I won't guess at details that aren't in the employer feed."
     };
 }
 

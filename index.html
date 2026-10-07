@@ -85,6 +85,7 @@
     <div class="nav-buttons">
         <button class="nav-btn" onclick="showPage('home')">Home</button>
         <button class="nav-btn" onclick="showPage('preferences')">Find Internship</button>
+        <button class="nav-btn" onclick="showPage('favorites')">Saved <span id="savedCount">0</span></button>
         <button class="nav-btn" onclick="showPage('profile')">My Profile</button>
         <button class="nav-btn logout-nav-btn" onclick="studentLogout()">Logout</button>
     </div>
@@ -102,7 +103,7 @@
             <div class="hero-stats" aria-label="Internship highlights">
                 <div class="hero-stat"><strong id="internshipCount">0</strong><span>current opportunities</span></div>
                 <div class="hero-stat"><strong id="onlineCount">0</strong><span>online options</span></div>
-                <div class="hero-stat"><strong>5</strong><span>configured job boards</span></div>
+                <div class="hero-stat"><strong>11</strong><span>configured job boards</span></div>
             </div>
         </div>
     </div>
@@ -141,8 +142,35 @@
                 <p id="profileEmail" class="company"></p>
             </div>
         </div>
+        <button class="secondary-btn profile-edit-toggle" id="profileEditToggle" type="button" onclick="beginProfileEdit()">Edit profile</button>
         <div class="profile-details" id="profileDetails"></div>
+        <p class="profile-message" id="profileMessage" role="status" aria-live="polite"></p>
+        <form class="profile-edit-form" id="profileEditForm" hidden onsubmit="event.preventDefault(); saveStudentProfile(event);">
+            <div class="profile-edit-grid">
+                <div class="profile-edit-field"><label for="profileNameInput">Full name</label><input id="profileNameInput" required maxlength="100"></div>
+                <div class="profile-edit-field"><label for="profilePhoneInput">Phone number</label><input id="profilePhoneInput" maxlength="30"></div>
+                <div class="profile-edit-field"><label for="profileBranchInput">College / branch</label><input id="profileBranchInput" maxlength="120"></div>
+                <div class="profile-edit-field"><label for="profileRollNumberInput">Roll number</label><input id="profileRollNumberInput" maxlength="60"></div>
+                <div class="profile-edit-field"><label for="profileSkillsInput">Skills</label><input id="profileSkillsInput" placeholder="Comma-separated skills" maxlength="300"></div>
+                <div class="profile-edit-field"><label for="profileLocationInput">Preferred location</label><input id="profileLocationInput" placeholder="City or Remote" maxlength="100"></div>
+            </div>
+            <div class="profile-edit-actions">
+                <button class="secondary-btn" type="button" onclick="cancelProfileEdit()">Cancel</button>
+                <button class="primary-btn" type="submit">Save profile</button>
+            </div>
+        </form>
         <button class="secondary-btn profile-logout" onclick="studentLogout()">Logout</button>
+    </div>
+</section>
+
+<!-- ================= SAVED INTERNSHIPS ================= -->
+<section id="favorites" class="page">
+    <div class="section">
+        <div class="section-title">
+            <h2>Saved Internships</h2>
+            <span id="savedInternshipCount">0 internships saved</span>
+        </div>
+        <div class="internship-grid" id="savedInternshipContainer"></div>
     </div>
 </section>
 
