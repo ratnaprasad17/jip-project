@@ -7,6 +7,7 @@ const sources = require("../sources.json");
 const {
     getDateInTimeZone,
     getPostedDate,
+    normalizeAshbyPostings,
     normalizeGreenhouseJobs,
     normalizeLeverPostings,
     reconcileInternships,
@@ -17,8 +18,8 @@ const source = { key: "sample-company", company: "Sample Company" };
 
 test("configured internship feeds have unique keys and complete source metadata", () => {
     assert.equal(new Set(sources.map(item => item.key)).size, sources.length);
-    assert.ok(sources.every(item => item.key && item.company && item.board && ["greenhouse", "lever"].includes(item.provider)));
-    assert.equal(sources.length, 11);
+    assert.ok(sources.every(item => item.key && item.company && item.board && ["greenhouse", "lever", "ashby"].includes(item.provider)));
+    assert.equal(sources.length, 25);
 });
 
 test("service account validation fails clearly for missing or invalid secrets", () => {
@@ -116,6 +117,28 @@ test("imports accept official ATS URLs and reject unrelated HTTPS hosts", () => 
     assert.deepEqual(lever.map(listing => listing._sourceId), ["good"]);
 });
 
+test("Greenhouse feeds may allow their exact employer-owned application host", () => {
+    const listings = normalizeGreenhouseJobs({
+        ...source,
+        applicationHosts: ["www.coinbase.com"]
+    }, [
+        {
+            id: 22,
+            title: "Analytics Intern",
+            location: { name: "Remote" },
+            absolute_url: "https://www.coinbase.com/careers/positions/22?gh_jid=22"
+        },
+        {
+            id: 23,
+            title: "Engineering Intern",
+            location: { name: "Remote" },
+            absolute_url: "https://evil.example/jobs/23"
+        }
+    ]);
+
+    assert.deepEqual(listings.map(listing => listing._sourceId), ["22"]);
+});
+
 test("sync preserves manual posts and keeps failed-source posts", () => {
     const manual = { id: 1, title: "Manual listing" };
     const previousImport = { id: 2, title: "Keep this during an outage", _sourceKey: "board-a" };
@@ -176,6 +199,39 @@ test("Lever createdAt becomes the posted date", () => {
     }]);
 
     assert.equal(listings[0].postedDate, "2026-09-30");
+});
+
+test("Ashby internships normalize dates, remote status, and official apply links", () => {
+    const listings = normalizeAshbyPostings(source, [
+        {
+            id: "ashby-123",
+            title: "Software Engineer Intern",
+            employmentType: "Intern",
+            location: "San Francisco",
+            isRemote: true,
+            publishedAt: "2026-09-30T12:00:00Z",
+            applyUrl: "https://jobs.ashbyhq.com/sample/ashby-123/application",
+            descriptionHtml: "<h1>What You'll Do</h1><p>Build software with TypeScript.</p>"
+        },
+        {
+            id: "ashby-untrusted",
+            title: "Design Intern",
+            location: "Remote",
+            applyUrl: "https://evil.example/apply"
+        },
+        {
+            id: "not-an-internship",
+            title: "International Account Manager",
+            location: "New York",
+            applyUrl: "https://jobs.ashbyhq.com/sample/other/application"
+        }
+    ]);
+
+    assert.equal(listings.length, 1);
+    assert.equal(listings[0].type, "Online");
+    assert.equal(listings[0].postedDate, "2026-09-30");
+    assert.equal(listings[0].link, "https://jobs.ashbyhq.com/sample/ashby-123/application");
+    assert.match(listings[0].description, /Build software/);
 });
 
 test("unknown work arrangements are not mislabeled as offline", () => {

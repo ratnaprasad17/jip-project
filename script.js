@@ -830,14 +830,10 @@ function displayFeatured() {
         const card = document.createElement("div");
         card.className = "feature-card";
         const workMode = hasPublishedValue(internship.type) ? internship.type : "Work mode not listed";
-        const isSaved = bookmarks.some(bookmarkId => String(bookmarkId) === String(internship.id));
         card.innerHTML = `
-            <div class="feature-card-top">
-                <span aria-hidden="true">🚀</span>
-                <button class="bookmark feature-bookmark" type="button" onclick="bookmark(${Number(internship.id)})"
-                        aria-label="${isSaved ? "Remove" : "Save"} ${escapeHTML(internship.title)}" aria-pressed="${isSaved}">
-                    ${isSaved ? "♥" : "♡"}
-                </button>
+            <div class="feature-card-top" aria-hidden="true">
+                <span class="feature-brand-mark">${escapeHTML((internship.company || "I").charAt(0).toUpperCase())}</span>
+                <span class="feature-brand-label">FEATURED ROLE</span>
             </div>
             <h3>${escapeHTML(internship.title)}</h3>
             <div class="company">${escapeHTML(internship.company)}</div>

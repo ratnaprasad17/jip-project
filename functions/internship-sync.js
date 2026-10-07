@@ -62,7 +62,7 @@ function safeHttpsUrl(value) {
     }
 }
 
-function safeOfficialApplicationUrl(provider, value) {
+function safeOfficialApplicationUrl(provider, value, sourceHosts = []) {
     const safeUrl = safeHttpsUrl(value);
     if (!safeUrl) return "";
 
@@ -71,9 +71,11 @@ function safeOfficialApplicationUrl(provider, value) {
         ? ["boards.greenhouse.io", "job-boards.greenhouse.io", "stripe.com"]
         : provider === "lever"
             ? ["jobs.lever.co", "jobs.eu.lever.co"]
-            : [];
+            : provider === "ashby"
+                ? ["jobs.ashbyhq.com"]
+                : [];
 
-    return approvedHosts.includes(host) ? safeUrl : "";
+    return approvedHosts.includes(host) || sourceHosts.includes(host) ? safeUrl : "";
 }
 
 function getSpecialization(text) {
@@ -120,7 +122,7 @@ function getClosingDate(posting) {
 }
 
 function getPostedDate(posting) {
-    const candidate = posting.updated_at || posting.createdAt || posting.created_at || posting.postedAt;
+    const candidate = posting.updated_at || posting.createdAt || posting.created_at || posting.postedAt || posting.publishedAt;
     if (!candidate) return "";
     const parsedDate = new Date(candidate);
     if (Number.isNaN(parsedDate.getTime())) return "";
@@ -154,7 +156,7 @@ function normalizePosting(source, posting, fields) {
     const description = getRoleDescription(fields.description);
     if (!title || !INTERNSHIP_TITLE_PATTERN.test(title)) return null;
 
-    const applicationLink = safeOfficialApplicationUrl(fields.provider, fields.applicationLink);
+    const applicationLink = safeOfficialApplicationUrl(fields.provider, fields.applicationLink, source.applicationHosts);
     if (!applicationLink) return null;
 
     const location = cleanText(fields.location, 120) || "Not specified";
@@ -166,7 +168,7 @@ function normalizePosting(source, posting, fields) {
         id: stableInternshipId(source.key, postingId),
         title,
         company: cleanText(source.company, 120) || "Company",
-        type: getWorkType(location),
+        type: fields.type || getWorkType(location),
         branch: "Not specified",
         specialization: getSpecialization(searchableText),
         location,
@@ -213,6 +215,19 @@ function normalizeLeverPostings(source, postings) {
     })).filter(Boolean);
 }
 
+function normalizeAshbyPostings(source, postings) {
+    return postings.map(posting => normalizePosting(source, posting, {
+        provider: "ashby",
+        id: posting.id,
+        title: posting.title,
+        description: posting.descriptionHtml,
+        location: posting.location,
+        type: posting.isRemote ? "Online" : undefined,
+        applicationLink: posting.applyUrl || posting.jobUrl,
+        department: [posting.department, posting.team].filter(Boolean).join(" ")
+    })).filter(Boolean);
+}
+
 async function fetchSource(source, fetchImpl = fetch) {
     if (!source || !source.key || !source.company || !source.board) {
         throw new Error("Each source must include key, company, and board fields.");
@@ -223,6 +238,8 @@ async function fetchSource(source, fetchImpl = fetch) {
         endpoint = `https://boards-api.greenhouse.io/v1/boards/${encodeURIComponent(source.board)}/jobs?content=true`;
     } else if (source.provider === "lever") {
         endpoint = `https://api.lever.co/v0/postings/${encodeURIComponent(source.board)}?mode=json`;
+    } else if (source.provider === "ashby") {
+        endpoint = `https://api.ashbyhq.com/posting-api/job-board/${encodeURIComponent(source.board)}`;
     } else {
         throw new Error(`Unsupported provider for source ${source.key}.`);
     }
@@ -234,12 +251,12 @@ async function fetchSource(source, fetchImpl = fetch) {
     if (!response.ok) throw new Error(`${source.provider} returned HTTP ${response.status}.`);
 
     const data = await response.json();
-    const records = source.provider === "greenhouse" ? data.jobs : data;
+    const records = source.provider === "greenhouse" || source.provider === "ashby" ? data.jobs : data;
     if (!Array.isArray(records)) throw new Error(`${source.provider} returned an unexpected response.`);
 
-    return source.provider === "greenhouse"
-        ? normalizeGreenhouseJobs(source, records)
-        : normalizeLeverPostings(source, records);
+    if (source.provider === "greenhouse") return normalizeGreenhouseJobs(source, records);
+    if (source.provider === "ashby") return normalizeAshbyPostings(source, records);
+    return normalizeLeverPostings(source, records);
 }
 
 function reconcileInternships(existing, sourceResults, today) {
@@ -283,6 +300,7 @@ module.exports = {
     fetchSource,
     getDateInTimeZone,
     getPostedDate,
+    normalizeAshbyPostings,
     normalizeGreenhouseJobs,
     normalizeLeverPostings,
     reconcileInternships,
