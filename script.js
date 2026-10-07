@@ -807,8 +807,8 @@ function renderApprovedStudentsList(list) {
     }
 
     container.innerHTML = list.map(student => {
-        const safeUid = JSON.stringify(String(student.uid));
-        const safeName = JSON.stringify(String(student.name || "Student"));
+        const safeUid = escapeHTML(JSON.stringify(String(student.uid)));
+        const safeName = escapeHTML(JSON.stringify(String(student.name || "Student")));
         return `
             <div class="admin-card-row">
                 <div class="admin-card-main">
@@ -826,7 +826,7 @@ function renderApprovedStudentsList(list) {
                 </div>
                 <div class="admin-card-actions">
                     <button class="secondary-btn" style="border-color:#f59e0b;color:#d97706;" onclick="revokeStudentApproval(${safeUid}, ${safeName})" title="Revoke approval and move back to Pending">Revoke Access</button>
-                    <button class="danger-btn" onclick="deleteStudentAccount(${safeUid}, ${safeName})" title="Permanently delete student account">Delete</button>
+                    <button class="danger-btn" onclick="deleteStudentAccount(${safeUid}, ${safeName})" title="Remove student profile from the database">Remove profile</button>
                 </div>
             </div>
         `;
@@ -850,15 +850,15 @@ async function revokeStudentApproval(uid, name) {
 }
 
 async function deleteStudentAccount(uid, name) {
-    if (!confirm(`Permanently delete account for "${name}"?\nThis will remove their profile and they will not be able to access the platform.`)) return;
+    if (!confirm(`Remove the database profile for "${name}"?\nThis does not delete their Firebase Authentication account.`)) return;
 
-    showLoader("Deleting student account...");
+    showLoader("Removing student profile...");
     try {
         await ensureAdminFirebaseSession();
         await firebase.database().ref(`students/${uid}`).remove();
         await displayApprovedStudents();
         await displayStudentRequests();
-        showLoaderSuccess(`Deleted ${name}'s account`);
+        showLoaderSuccess(`Removed ${name}'s profile`);
     } catch (error) {
         hideLoader();
         alert(getFirebaseErrorMessage(error));
@@ -1544,37 +1544,54 @@ function displayAdminInternships() {
         return;
     }
 
-    container.innerHTML = paginated.map(internship => {
-        const safeId = Number(internship.id);
-        const isIndia = isIndiaBasedListing(internship);
-        const skillsText = Array.isArray(internship.skills) ? internship.skills.filter(Boolean).slice(0, 5).join(", ") : "";
-        return `
-            <div class="admin-card-row">
-                <div class="admin-card-main">
-                    <div class="admin-card-header">
-                        <h4>${escapeHTML(internship.title)}</h4>
-                        <span class="tag">${escapeHTML(internship.type || "Online")}</span>
-                        ${isIndia ? `<span class="tag india-tag">India</span>` : ""}
-                    </div>
-                    <div class="admin-card-meta">
-                        <span class="admin-meta-item">🏢 <strong>${escapeHTML(internship.company)}</strong></span>
-                        <span class="admin-meta-item">📍 ${escapeHTML(internship.location || "Not specified")}</span>
-                        <span class="admin-meta-item">💰 ${escapeHTML(internship.stipend || "Not specified")}</span>
-                        <span class="admin-meta-item">⏱️ ${escapeHTML(internship.duration || "Not specified")}</span>
-                        ${internship.closingDate ? `<span class="admin-meta-item">🗓 Closes: ${escapeHTML(internship.closingDate)}</span>` : ""}
-                    </div>
-                    <div class="admin-card-tags">
-                        <span class="admin-tag-pill">${escapeHTML(internship.branch || "General")}</span>
-                        ${internship.specialization ? `<span class="admin-tag-pill">${escapeHTML(internship.specialization)}</span>` : ""}
-                        ${skillsText ? `<span class="admin-tag-skills">🧠 ${escapeHTML(skillsText)}</span>` : ""}
-                    </div>
-                </div>
-                <div class="admin-card-actions">
-                    <button class="danger-btn" onclick="deleteInternship(${safeId})" aria-label="Delete ${escapeHTML(internship.title)}">Delete</button>
-                </div>
-            </div>
-        `;
-    }).join("");
+    container.innerHTML = `
+        <div class="admin-table-container">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Role & Branch</th>
+                        <th>Company</th>
+                        <th>Location & Type</th>
+                        <th>Deadline</th>
+                        <th style="text-align: right;">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${paginated.map(internship => {
+                        const safeId = Number(internship.id);
+                        return `
+                            <tr>
+                                <td>
+                                    <div style="font-weight: 700; color: #0f766e; font-size: 14px;">${escapeHTML(internship.title)}</div>
+                                    <div style="font-size: 11px; color: #64748b; margin-top: 2px;">
+                                        ${escapeHTML(internship.branch || "General")}
+                                    </div>
+                                </td>
+                                <td>
+                                    <div style="font-weight: 600;">${escapeHTML(internship.company)}</div>
+                                </td>
+                                <td>
+                                    <div style="font-size: 13px;">${escapeHTML(internship.location || "Remote")}</div>
+                                    <div style="margin-top: 3px;">
+                                        <span class="admin-tag-pill">${escapeHTML(internship.type || "Online")}</span>
+                                        ${isIndiaBasedListing(internship) ? `<span class="admin-tag-pill" style="background:#def3e8;color:#155b3b;">India</span>` : ""}
+                                    </div>
+                                </td>
+                                <td>
+                                    <div style="font-size: 13px; font-weight: 600; color: #ea580c;">
+                                        ${escapeHTML(internship.closingDate || "N/A")}
+                                    </div>
+                                </td>
+                                <td style="text-align: right;">
+                                    <button class="danger-btn-small" onclick="deleteInternship(${safeId})" aria-label="Delete ${escapeHTML(internship.title)}">✕ Delete</button>
+                                </td>
+                            </tr>
+                        `;
+                    }).join("")}
+                </tbody>
+            </table>
+        </div>
+    `;
 }
 
 function deleteInternship(id) {
@@ -2464,8 +2481,7 @@ Object.assign(window, {
     submitCustomTracker,
     switchAdminTab,
     switchReviewsTab,
-    togglePassword,
-    updateApplicationStatus
+    togglePassword
 });
 
 displayFeatured();

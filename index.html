@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="description" content="Discover verified student and graduate internships across India and globally. Real-time listings from 46+ top company job boards with smart AI matching.">
+<meta name="description" content="Discover verified student and graduate internships across India and globally. Listings from 26 employer job boards with preference-based matching.">
 <title>InternMatch - Find Your Internship</title>
 <link rel="icon" type="image/jpeg" href="vasavi-logo.jpg">
 <script>
@@ -30,7 +30,7 @@
 <body>
 
 <!-- ================= LOADING OVERLAY ================= -->
-<div id="loadingOverlay" class="loading-overlay">
+<div id="loadingOverlay" class="loading-overlay show">
     <div class="loader-content">
         <img src="vasavi-logo.jpg" alt="College Logo" class="loader-logo-img">
         <div class="loader-logo">Intern<span>Match</span></div>
@@ -611,7 +611,7 @@
             </div>
 
             <div class="admin-toolbar" style="margin-bottom: 16px;">
-                <input type="text" id="adminStudentSearch" class="admin-search-input"
+                <input type="text" id="adminStudentSearch" class="admin-search-field"
                        placeholder="Search approved students by name, email, roll number, or branch..."
                        oninput="filterApprovedStudents()" aria-label="Search approved students">
             </div>
