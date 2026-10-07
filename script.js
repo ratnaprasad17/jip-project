@@ -171,6 +171,8 @@ function saveStudentSession(student) {
     currentStudent = student;
     try {
         localStorage.setItem("studentSession", JSON.stringify(student));
+        document.documentElement.classList.remove("is-guest");
+        document.documentElement.classList.add("is-authenticated");
     } catch (error) {
         console.warn("Could not save student session locally.", error);
     }
@@ -180,6 +182,8 @@ function clearStudentSession() {
     currentStudent = null;
     try {
         localStorage.removeItem("studentSession");
+        document.documentElement.classList.remove("is-authenticated");
+        document.documentElement.classList.add("is-guest");
     } catch (error) {}
 }
 
@@ -375,9 +379,11 @@ function togglePassword(inputId, toggleButton) {
 }
 
 function openFounderLogin() {
+    document.documentElement.classList.remove("is-guest");
     document.body.classList.remove("auth-locked");
     document.body.classList.add("founder-login");
-    document.getElementById("authGate").hidden = true;
+    const gate = document.getElementById("authGate");
+    if (gate) gate.hidden = true;
     document.querySelectorAll(".page").forEach(page => page.classList.remove("active"));
     document.getElementById("admin").classList.add("active");
     showPage("admin");
@@ -385,9 +391,13 @@ function openFounderLogin() {
 
 function returnToStudentLogin() {
     setAdminAuthenticated(false);
+    sessionStorage.removeItem("adminAuth");
+    document.documentElement.classList.remove("is-authenticated");
+    document.documentElement.classList.add("is-guest");
     document.body.classList.remove("founder-login");
     document.body.classList.add("auth-locked");
-    document.getElementById("authGate").hidden = false;
+    const gate = document.getElementById("authGate");
+    if (gate) gate.hidden = false;
     showStudentLogin();
 }
 
@@ -597,7 +607,6 @@ function startSharedInternships() {
         ensureFirebase();
         listenToMetadata();
         loadApplicationsFromFirebase();
-        loadReferrals();
         firebaseInternshipRef = firebase.database().ref("internships");
         firebaseInternshipRef.on("value", snapshot => {
             const sharedInternships = snapshot.val();
@@ -652,10 +661,23 @@ let adminAuthenticatedInMemory = false;
 
 function setAdminAuthenticated(authenticated) {
     adminAuthenticatedInMemory = authenticated;
+    if (authenticated) {
+        try {
+            sessionStorage.setItem("adminAuth", "true");
+        } catch (e) {}
+        document.documentElement.classList.remove("is-guest");
+        document.documentElement.classList.add("is-authenticated");
+    } else {
+        try {
+            sessionStorage.removeItem("adminAuth");
+        } catch (e) {}
+        document.documentElement.classList.remove("is-authenticated");
+        document.documentElement.classList.add("is-guest");
+    }
 }
 
 function getStoredAdminAuthentication() {
-    return false;
+    return sessionStorage.getItem("adminAuth") === "true";
 }
 
 function isAdminAuthenticated() {
@@ -733,8 +755,10 @@ function adminLogout() {
 }
 
 /* =========================================================
-   ADMIN - STUDENT APPROVALS
+   ADMIN - STUDENT APPROVALS & MANAGEMENT
 ========================================================= */
+let allApprovedStudents = [];
+
 async function displayApprovedStudents() {
     const container = document.getElementById("approvedStudentList");
     const count = document.getElementById("approvedStudentCount");
@@ -742,19 +766,102 @@ async function displayApprovedStudents() {
 
     try {
         await ensureAdminFirebaseSession();
-        const students = (await firebase.database().ref("students").once("value")).val() || {};
-        const approved = Object.values(students).filter(student => student.status === "approved");
-        count.innerText = `${approved.length} total`;
-        container.innerHTML = approved.length ? approved.map(student => `
-            <div style="padding:14px 0;border-top:1px solid #e5e7eb">
-                <strong>${escapeHTML(student.name)}</strong>
-                <div class="company">${escapeHTML(student.email)} - ${escapeHTML(student.phone)}</div>
-                <div class="company">${escapeHTML(student.branch)} - Roll No: ${escapeHTML(student.rollNumber)}</div>
-            </div>
-        `).join("") : "<p class=\"company\">No approved users yet.</p>";
+        const snapshot = await firebase.database().ref("students").once("value");
+        const students = snapshot.val() || {};
+        allApprovedStudents = Object.entries(students)
+            .map(([uid, student]) => ({ uid, ...student }))
+            .filter(student => student.status === "approved");
+
+        count.innerText = `${allApprovedStudents.length} total`;
+        renderApprovedStudentsList(allApprovedStudents);
     } catch (error) {
         count.innerText = "";
-        container.innerText = getFirebaseErrorMessage(error);
+        container.innerHTML = `<p class="company">${escapeHTML(getFirebaseErrorMessage(error))}</p>`;
+    }
+}
+
+function filterApprovedStudents() {
+    const query = (document.getElementById("adminStudentSearch")?.value || "").toLowerCase().trim();
+    if (!query) {
+        renderApprovedStudentsList(allApprovedStudents);
+        return;
+    }
+    const filtered = allApprovedStudents.filter(student => {
+        const name = (student.name || "").toLowerCase();
+        const email = (student.email || "").toLowerCase();
+        const phone = (student.phone || "").toLowerCase();
+        const branch = (student.branch || "").toLowerCase();
+        const roll = (student.rollNumber || "").toLowerCase();
+        return name.includes(query) || email.includes(query) || phone.includes(query) || branch.includes(query) || roll.includes(query);
+    });
+    renderApprovedStudentsList(filtered);
+}
+
+function renderApprovedStudentsList(list) {
+    const container = document.getElementById("approvedStudentList");
+    if (!container) return;
+
+    if (!list.length) {
+        container.innerHTML = `<div class="empty-state" style="padding:24px;text-align:center;color:#64748b;">No approved students found.</div>`;
+        return;
+    }
+
+    container.innerHTML = list.map(student => {
+        const safeUid = JSON.stringify(String(student.uid));
+        const safeName = JSON.stringify(String(student.name || "Student"));
+        return `
+            <div class="admin-card-row">
+                <div class="admin-card-main">
+                    <div class="admin-card-header">
+                        <h4>${escapeHTML(student.name || "Student")}</h4>
+                        <span class="tag" style="background:#ecfdf5;color:#047857;border-color:#a7f3d0;">✓ Approved</span>
+                    </div>
+                    <div class="admin-card-meta">
+                        <span class="admin-meta-item">✉️ ${escapeHTML(student.email || "No email")}</span>
+                        <span class="admin-meta-item">📞 ${escapeHTML(student.phone || "No phone")}</span>
+                        <span class="admin-meta-item">🏛️ ${escapeHTML(student.branch || "General")}</span>
+                        <span class="admin-meta-item">🎓 Roll No: <strong>${escapeHTML(student.rollNumber || "N/A")}</strong></span>
+                    </div>
+                    ${student.skills ? `<div class="admin-card-tags"><span class="admin-tag-skills">🧠 ${escapeHTML(student.skills)}</span></div>` : ""}
+                </div>
+                <div class="admin-card-actions">
+                    <button class="secondary-btn" style="border-color:#f59e0b;color:#d97706;" onclick="revokeStudentApproval(${safeUid}, ${safeName})" title="Revoke approval and move back to Pending">Revoke Access</button>
+                    <button class="danger-btn" onclick="deleteStudentAccount(${safeUid}, ${safeName})" title="Permanently delete student account">Delete</button>
+                </div>
+            </div>
+        `;
+    }).join("");
+}
+
+async function revokeStudentApproval(uid, name) {
+    if (!confirm(`Revoke approval for "${name}"?\nTheir status will be moved back to Pending and they will not be able to log in until approved again.`)) return;
+
+    showLoader("Revoking student approval...");
+    try {
+        await ensureAdminFirebaseSession();
+        await firebase.database().ref(`students/${uid}/status`).set("pending");
+        await displayApprovedStudents();
+        await displayStudentRequests();
+        showLoaderSuccess(`Access revoked for ${name}`);
+    } catch (error) {
+        hideLoader();
+        alert(getFirebaseErrorMessage(error));
+    }
+}
+
+async function deleteStudentAccount(uid, name) {
+    if (!confirm(`Permanently delete account for "${name}"?\nThis will remove their profile and they will not be able to access the platform.`)) return;
+
+    showLoader("Deleting student account...");
+    try {
+        await ensureAdminFirebaseSession();
+        await firebase.database().ref(`students/${uid}`).remove();
+        await displayApprovedStudents();
+        await displayStudentRequests();
+        showLoaderSuccess(`Deleted ${name}'s account`);
+    } catch (error) {
+        hideLoader();
+        alert(getFirebaseErrorMessage(error));
     }
 }
 
@@ -770,17 +877,37 @@ async function displayStudentRequests() {
         const pending = Object.entries(students).filter(([, student]) => student.status === "pending");
         const tabPendingCount = document.getElementById("adminTabPendingCount");
         if (tabPendingCount) tabPendingCount.innerText = String(pending.length);
-        container.innerHTML = pending.length ? pending.map(([uid, student]) => `
-            <div style="padding:14px 0;border-top:1px solid #e5e7eb">
-                <strong>${escapeHTML(student.name)}</strong>
-                <div class="company">${escapeHTML(student.email)} - ${escapeHTML(student.phone)}</div>
-                <div class="company">${escapeHTML(student.branch)} - Roll No: ${escapeHTML(student.rollNumber)}</div>
-                <button class="small-primary" style="margin-top:10px" onclick="approveStudent('${escapeHTML(uid)}')">Accept</button>
-                <button class="danger-btn" style="margin-top:10px" onclick="rejectStudent('${escapeHTML(uid)}')">Reject</button>
-            </div>
-        `).join("") : "<p class=\"company\">No pending registrations.</p>";
+
+        if (!pending.length) {
+            container.innerHTML = `<div class="empty-state" style="padding:18px;text-align:center;color:#64748b;">No pending student registrations.</div>`;
+            return;
+        }
+
+        container.innerHTML = pending.map(([uid, student]) => {
+            const safeUid = JSON.stringify(String(uid));
+            return `
+                <div class="admin-card-row" style="margin-bottom:12px;">
+                    <div class="admin-card-main">
+                        <div class="admin-card-header">
+                            <h4>${escapeHTML(student.name || "Student")}</h4>
+                            <span class="tag" style="background:#fffbeb;color:#b45309;border-color:#fde68a;">⏳ Pending Approval</span>
+                        </div>
+                        <div class="admin-card-meta">
+                            <span class="admin-meta-item">✉️ ${escapeHTML(student.email || "")}</span>
+                            <span class="admin-meta-item">📞 ${escapeHTML(student.phone || "No phone")}</span>
+                            <span class="admin-meta-item">🏛️ ${escapeHTML(student.branch || "General")}</span>
+                            <span class="admin-meta-item">🎓 Roll No: <strong>${escapeHTML(student.rollNumber || "N/A")}</strong></span>
+                        </div>
+                    </div>
+                    <div class="admin-card-actions">
+                        <button class="primary-btn" style="padding:7px 16px;font-size:0.875rem;" onclick="approveStudent(${safeUid})">Accept</button>
+                        <button class="danger-btn" onclick="rejectStudent(${safeUid})">Reject</button>
+                    </div>
+                </div>
+            `;
+        }).join("");
     } catch (error) {
-        container.innerText = getFirebaseErrorMessage(error);
+        container.innerHTML = `<p class="company">${escapeHTML(getFirebaseErrorMessage(error))}</p>`;
     }
 }
 
@@ -826,7 +953,6 @@ function showPage(pageId) {
     if (pageId === "favorites") displaySavedInternships();
     if (pageId === "tracker") renderTrackerPage();
     if (pageId === "insights") renderInsightsDashboard();
-    if (pageId === "referrals") renderReferrals();
     if (pageId === "admin") {
         updateAdminView();
     }
@@ -1108,6 +1234,7 @@ let lastModalTrigger = null;
 function showDetails(id) {
     const internship = findInternshipById(id);
     if (!internship) return;
+    trackInternshipView(internship);
     const modal = document.getElementById("detailsModal");
     const body = document.getElementById("modalBody");
     const skills = Array.isArray(internship.skills) ? internship.skills.filter(hasPublishedValue) : [];
@@ -1443,7 +1570,6 @@ function displayAdminInternships() {
                     </div>
                 </div>
                 <div class="admin-card-actions">
-                    <button class="secondary-btn" onclick="showDetails(${safeId})">View Details</button>
                     <button class="danger-btn" onclick="deleteInternship(${safeId})" aria-label="Delete ${escapeHTML(internship.title)}">Delete</button>
                 </div>
             </div>
@@ -1572,7 +1698,7 @@ function listenToMetadata() {
 }
 
 /* =========================================================
-   FEATURE 5: APPLICATION TRACKER
+   FEATURE 5: APPLICATION & ACTIVITY TRACKER
 ========================================================= */
 let trackedApplications = [];
 try {
@@ -1582,7 +1708,55 @@ try {
     trackedApplications = [];
 }
 
-let activeTrackerFilter = "all";
+let viewedInternships = [];
+try {
+    const savedViewed = JSON.parse(localStorage.getItem("viewedInternships"));
+    if (Array.isArray(savedViewed)) viewedInternships = savedViewed;
+} catch (e) {
+    viewedInternships = [];
+}
+
+let activeTrackerFilter = "viewed";
+
+function trackInternshipView(internship) {
+    if (!internship) return;
+    const safeId = String(internship.id);
+    const existingIndex = viewedInternships.findIndex(v => String(v.id) === safeId);
+    if (existingIndex !== -1) {
+        viewedInternships.splice(existingIndex, 1);
+    }
+    viewedInternships.unshift({
+        id: internship.id,
+        title: internship.title || "Internship Role",
+        company: internship.company || "Company",
+        location: internship.location || "Remote",
+        type: internship.type || "Online",
+        stipend: internship.stipend || "Not specified",
+        link: internship.link || "",
+        closingDate: internship.closingDate || "",
+        viewedAt: Date.now()
+    });
+    if (viewedInternships.length > 50) viewedInternships = viewedInternships.slice(0, 50);
+    localStorage.setItem("viewedInternships", JSON.stringify(viewedInternships));
+    if (isFirebaseConfigured() && firebase.auth().currentUser) {
+        try {
+            ensureFirebase();
+            const uid = firebase.auth().currentUser.uid;
+            firebase.database().ref(`students/${uid}/viewedInternships`).set(viewedInternships).catch(console.warn);
+        } catch (e) {}
+    }
+    updateTrackerMetrics();
+    if (document.getElementById("tracker")?.classList.contains("active")) {
+        renderTrackerPage();
+    }
+}
+
+function removeViewedInternship(id) {
+    viewedInternships = viewedInternships.filter(v => String(v.id) !== String(id));
+    localStorage.setItem("viewedInternships", JSON.stringify(viewedInternships));
+    updateTrackerMetrics();
+    renderTrackerPage();
+}
 
 function saveApplications() {
     localStorage.setItem("trackedApplications", JSON.stringify(trackedApplications));
@@ -1614,41 +1788,70 @@ function loadApplicationsFromFirebase() {
                 }
             }
         });
+        firebase.database().ref(`students/${uid}/viewedInternships`).once("value").then(snapshot => {
+            const val = snapshot.val();
+            if (Array.isArray(val) && val.length) {
+                viewedInternships = val;
+                localStorage.setItem("viewedInternships", JSON.stringify(viewedInternships));
+                updateTrackerMetrics();
+                if (document.getElementById("tracker")?.classList.contains("active")) {
+                    renderTrackerPage();
+                }
+            }
+        });
     } catch (e) {}
 }
 
+function getDaysRemaining(closingDateStr) {
+    if (!closingDateStr) return null;
+    try {
+        const parts = closingDateStr.split("-");
+        if (parts.length !== 3) return null;
+        const target = new Date(parts[0], parts[1] - 1, parts[2]);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const diffMs = target.getTime() - today.getTime();
+        return Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+    } catch (e) {
+        return null;
+    }
+}
+
 function updateTrackerMetrics() {
-    const total = trackedApplications.length;
-    const applied = trackedApplications.filter(a => a.status === "Applied").length;
-    const interviewing = trackedApplications.filter(a => a.status === "Interviewing").length;
-    const offers = trackedApplications.filter(a => a.status === "Offer").length;
-    const saved = trackedApplications.filter(a => a.status === "Saved").length;
-    const rejected = trackedApplications.filter(a => a.status === "Rejected").length;
+    const viewedCount = viewedInternships.length;
+    const appliedList = trackedApplications.filter(a => a.status === "Applied");
+    const appliedCount = appliedList.length;
+    const savedCount = bookmarks.length;
+
+    const closingSoonList = internships.filter(i => {
+        const days = getDaysRemaining(i.closingDate);
+        return days !== null && days >= 0 && days <= 14;
+    });
+    const closingSoonCount = closingSoonList.length;
+    const totalActivity = viewedCount + appliedCount + savedCount;
 
     const badge = document.getElementById("trackerBadge");
-    if (badge) badge.innerText = String(total);
+    if (badge) badge.innerText = String(totalActivity);
 
-    const elTotal = document.getElementById("trackerTotalCount");
+    const elViewed = document.getElementById("trackerTotalViewedCount");
     const elApplied = document.getElementById("trackerAppliedCount");
-    const elInterview = document.getElementById("trackerInterviewCount");
-    const elOffer = document.getElementById("trackerOfferCount");
-    if (elTotal) elTotal.innerText = total;
-    if (elApplied) elApplied.innerText = applied;
-    if (elInterview) elInterview.innerText = interviewing;
-    if (elOffer) elOffer.innerText = offers;
+    const elSaved = document.getElementById("trackerSavedCount");
+    const elClosing = document.getElementById("trackerClosingSoonCount");
+    if (elViewed) elViewed.innerText = String(viewedCount);
+    if (elApplied) elApplied.innerText = String(appliedCount);
+    if (elSaved) elSaved.innerText = String(savedCount);
+    if (elClosing) elClosing.innerText = String(closingSoonCount);
 
+    const tabViewed = document.getElementById("tabCountViewed");
+    const tabApplied = document.getElementById("tabCountApplied");
+    const tabSaved = document.getElementById("tabCountSaved");
+    const tabClosing = document.getElementById("tabCountClosingSoon");
     const tabAll = document.getElementById("tabCountAll");
-    const tabApp = document.getElementById("tabCountApplied");
-    const tabInt = document.getElementById("tabCountInterviewing");
-    const tabOff = document.getElementById("tabCountOffer");
-    const tabSav = document.getElementById("tabCountSaved");
-    const tabRej = document.getElementById("tabCountRejected");
-    if (tabAll) tabAll.innerText = total;
-    if (tabApp) tabApp.innerText = applied;
-    if (tabInt) tabInt.innerText = interviewing;
-    if (tabOff) tabOff.innerText = offers;
-    if (tabSav) tabSav.innerText = saved;
-    if (tabRej) tabRej.innerText = rejected;
+    if (tabViewed) tabViewed.innerText = String(viewedCount);
+    if (tabApplied) tabApplied.innerText = String(appliedCount);
+    if (tabSaved) tabSaved.innerText = String(savedCount);
+    if (tabClosing) tabClosing.innerText = String(closingSoonCount);
+    if (tabAll) tabAll.innerText = String(totalActivity);
 }
 
 function autoTrackApplication(internship) {
@@ -1687,7 +1890,7 @@ function submitCustomTracker(e) {
     e.preventDefault();
     const company = document.getElementById("trackCompany").value.trim();
     const title = document.getElementById("trackTitle").value.trim();
-    const status = document.getElementById("trackStatus").value;
+    const status = document.getElementById("trackStatus").value || "Applied";
     const date = document.getElementById("trackDate").value || getLocalDateString();
     const link = document.getElementById("trackLink").value.trim();
     const notes = document.getElementById("trackNotes").value.trim();
@@ -1713,17 +1916,13 @@ function submitCustomTracker(e) {
 function filterTrackerStatus(status, tabElement) {
     activeTrackerFilter = status;
     document.querySelectorAll(".tracker-tab").forEach(tab => tab.classList.remove("active"));
-    if (tabElement) tabElement.classList.add("active");
-    renderTrackerPage();
-}
-
-function updateApplicationStatus(id, newStatus) {
-    const app = trackedApplications.find(a => String(a.id) === String(id));
-    if (app) {
-        app.status = newStatus;
-        saveApplications();
-        renderTrackerPage();
+    if (tabElement) {
+        tabElement.classList.add("active");
+    } else {
+        const matchingTab = document.querySelector(`.tracker-tab[data-status="${status}"]`);
+        if (matchingTab) matchingTab.classList.add("active");
     }
+    renderTrackerPage();
 }
 
 function deleteTrackedApplication(id) {
@@ -1733,49 +1932,236 @@ function deleteTrackedApplication(id) {
     renderTrackerPage();
 }
 
+function formatRelativeTime(timestamp) {
+    if (!timestamp) return "Recently";
+    const diffSec = Math.floor((Date.now() - Number(timestamp)) / 1000);
+    if (diffSec < 60) return "Just now";
+    const diffMin = Math.floor(diffSec / 60);
+    if (diffMin < 60) return `${diffMin}m ago`;
+    const diffHr = Math.floor(diffMin / 60);
+    if (diffHr < 24) return `${diffHr}h ago`;
+    const diffDay = Math.floor(diffHr / 24);
+    return `${diffDay}d ago`;
+}
+
 function renderTrackerPage() {
     updateTrackerMetrics();
     const container = document.getElementById("trackerListContainer");
     if (!container) return;
 
-    const list = activeTrackerFilter === "all"
-        ? trackedApplications
-        : trackedApplications.filter(a => a.status === activeTrackerFilter);
+    // 1. VIEWED TAB
+    if (activeTrackerFilter === "viewed") {
+        if (!viewedInternships.length) {
+            container.innerHTML = `
+                <div class="empty-state" style="padding:32px;text-align:center;background:#fff;border-radius:14px;border:1px dashed #cbd5e1;">
+                    <span style="font-size:32px;display:block;margin-bottom:8px;">👁️</span>
+                    <strong>No viewed internships yet</strong>
+                    <p class="company mt-4">When you browse and view internship details, they will automatically appear here in real-time!</p>
+                    <button class="primary-btn" style="margin-top:14px;" onclick="showPage('preferences')">Explore Internships →</button>
+                </div>
+            `;
+            return;
+        }
 
-    if (!list.length) {
-        container.innerHTML = `<p class="company">No applications found under the "${activeTrackerFilter}" status stage.</p>`;
+        container.innerHTML = viewedInternships.map(item => {
+            const isBookmarked = bookmarks.some(b => String(b) === String(item.id));
+            const safeId = JSON.stringify(String(item.id));
+            const relativeTime = formatRelativeTime(item.viewedAt);
+            return `
+                <div class="tracker-card">
+                    <div class="tracker-card-left">
+                        <div class="tracker-card-title">${escapeHTML(item.title)}</div>
+                        <div class="tracker-card-company">🏢 ${escapeHTML(item.company)} • 📍 ${escapeHTML(item.location || "Remote")} • 💰 ${escapeHTML(item.stipend || "Not specified")}</div>
+                        <div style="font-size:12px;color:#64748b;display:flex;align-items:center;gap:6px;margin-top:4px;">
+                            <span>👁️ Viewed ${escapeHTML(relativeTime)}</span>
+                            <span>•</span>
+                            <span class="tag" style="padding:2px 8px;font-size:11px;">${escapeHTML(item.type || "Online")}</span>
+                        </div>
+                    </div>
+                    <div class="tracker-card-right">
+                        <button class="primary-btn" onclick="apply(${safeId})" style="padding:7px 16px;font-size:13px;">Apply Now ↗</button>
+                        <button class="secondary-btn" onclick="bookmark(${safeId});renderTrackerPage();" style="padding:7px 12px;font-size:13px;">
+                            ${isBookmarked ? "⭐ Saved" : "☆ Save"}
+                        </button>
+                        <button class="secondary-btn" onclick="showDetails(${safeId})" style="padding:7px 12px;font-size:13px;">Details</button>
+                        <button class="danger-btn" onclick="removeViewedInternship(${safeId})" style="padding:7px 10px;font-size:12px;" title="Remove from viewed history">✕</button>
+                    </div>
+                </div>
+            `;
+        }).join("");
         return;
     }
 
-    container.innerHTML = list.map(app => {
-        const statusClass = `status-${(app.status || "applied").toLowerCase()}`;
-        return `
-            <div class="tracker-card">
-                <div class="tracker-card-left">
-                    <div class="tracker-card-title">${escapeHTML(app.title)}</div>
-                    <div class="tracker-card-company">${escapeHTML(app.company)} • 🗓 ${escapeHTML(app.date || "")}</div>
-                    ${app.notes ? `<div class="tracker-card-notes">📝 ${escapeHTML(app.notes)}</div>` : ""}
+    // 2. APPLIED TAB
+    if (activeTrackerFilter === "Applied") {
+        const appliedList = trackedApplications.filter(a => a.status === "Applied");
+        if (!appliedList.length) {
+            container.innerHTML = `
+                <div class="empty-state" style="padding:32px;text-align:center;background:#fff;border-radius:14px;border:1px dashed #cbd5e1;">
+                    <span style="font-size:32px;display:block;margin-bottom:8px;">🚀</span>
+                    <strong>No applications submitted yet</strong>
+                    <p class="company mt-4">When you click "Apply" on any role, it automatically saves to this tracker!</p>
                 </div>
-                <div class="tracker-card-right">
-                    <span class="status-badge ${statusClass}">${escapeHTML(app.status)}</span>
-                    <select onchange="updateApplicationStatus('${app.id}', this.value)" style="height:36px;padding:0 8px;border-radius:8px;border:1px solid #cbd5e1;font-size:12px;">
-                        <option value="Applied" ${app.status === "Applied" ? "selected" : ""}>Applied</option>
-                        <option value="Interviewing" ${app.status === "Interviewing" ? "selected" : ""}>Interviewing</option>
-                        <option value="Offer" ${app.status === "Offer" ? "selected" : ""}>Offer 🎉</option>
-                        <option value="Saved" ${app.status === "Saved" ? "selected" : ""}>Saved</option>
-                        <option value="Rejected" ${app.status === "Rejected" ? "selected" : ""}>Rejected</option>
-                    </select>
-                    ${app.link ? `<a class="secondary-btn" href="${escapeHTML(app.link)}" target="_blank" rel="noopener noreferrer" style="padding:6px 12px;font-size:12px;text-decoration:none;">Portal ↗</a>` : ""}
-                    <button class="danger-btn" onclick="deleteTrackedApplication('${app.id}')" style="padding:6px 12px;font-size:12px;">Delete</button>
+            `;
+            return;
+        }
+
+        container.innerHTML = appliedList.map(app => {
+            const safeAppId = JSON.stringify(String(app.id));
+            return `
+                <div class="tracker-card">
+                    <div class="tracker-card-left">
+                        <div class="tracker-card-title">${escapeHTML(app.title)}</div>
+                        <div class="tracker-card-company">🏢 ${escapeHTML(app.company)} • 🗓 Applied on: <strong>${escapeHTML(app.date || "Recently")}</strong></div>
+                        ${app.notes ? `<div class="tracker-card-notes">📝 ${escapeHTML(app.notes)}</div>` : ""}
+                    </div>
+                    <div class="tracker-card-right">
+                        <span class="status-badge status-applied">✓ Applied</span>
+                        ${app.link ? `<a class="secondary-btn" href="${escapeHTML(app.link)}" target="_blank" rel="noopener noreferrer" style="padding:7px 14px;font-size:13px;text-decoration:none;">Portal ↗</a>` : ""}
+                        <button class="danger-btn" onclick="deleteTrackedApplication(${safeAppId})" style="padding:7px 12px;font-size:12px;">Delete</button>
+                    </div>
                 </div>
+            `;
+        }).join("");
+        return;
+    }
+
+    // 3. SAVED TAB
+    if (activeTrackerFilter === "Saved") {
+        const savedInternships = bookmarks.map(findInternshipById).filter(Boolean);
+        if (!savedInternships.length) {
+            container.innerHTML = `
+                <div class="empty-state" style="padding:32px;text-align:center;background:#fff;border-radius:14px;border:1px dashed #cbd5e1;">
+                    <span style="font-size:32px;display:block;margin-bottom:8px;">⭐</span>
+                    <strong>No saved internships</strong>
+                    <p class="company mt-4">Save roles you want to apply for later by clicking the star icon on any card.</p>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = savedInternships.map(item => {
+            const safeId = JSON.stringify(String(item.id));
+            return `
+                <div class="tracker-card">
+                    <div class="tracker-card-left">
+                        <div class="tracker-card-title">${escapeHTML(item.title)}</div>
+                        <div class="tracker-card-company">🏢 ${escapeHTML(item.company)} • 📍 ${escapeHTML(item.location || "Remote")} • 💰 ${escapeHTML(item.stipend || "Not specified")}</div>
+                    </div>
+                    <div class="tracker-card-right">
+                        <button class="primary-btn" onclick="apply(${safeId})" style="padding:7px 16px;font-size:13px;">Apply Now ↗</button>
+                        <button class="secondary-btn" onclick="showDetails(${safeId})" style="padding:7px 12px;font-size:13px;">Details</button>
+                        <button class="danger-btn" onclick="bookmark(${safeId});renderTrackerPage();" style="padding:7px 10px;font-size:12px;" title="Remove bookmark">✕</button>
+                    </div>
+                </div>
+            `;
+        }).join("");
+        return;
+    }
+
+    // 4. CLOSING SOON TAB
+    if (activeTrackerFilter === "ClosingSoon") {
+        const closingSoonList = internships.filter(i => {
+            const days = getDaysRemaining(i.closingDate);
+            return days !== null && days >= 0 && days <= 14;
+        }).sort((a, b) => (getDaysRemaining(a.closingDate) || 0) - (getDaysRemaining(b.closingDate) || 0));
+
+        if (!closingSoonList.length) {
+            container.innerHTML = `
+                <div class="empty-state" style="padding:32px;text-align:center;background:#fff;border-radius:14px;border:1px dashed #cbd5e1;">
+                    <span style="font-size:32px;display:block;margin-bottom:8px;">⏳</span>
+                    <strong>No urgent deadlines in the next 14 days</strong>
+                    <p class="company mt-4">All opportunities have ample application windows remaining.</p>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = closingSoonList.map(item => {
+            const days = getDaysRemaining(item.closingDate);
+            const safeId = JSON.stringify(String(item.id));
+            return `
+                <div class="tracker-card" style="border-left:4px solid #ea580c;">
+                    <div class="tracker-card-left">
+                        <div class="tracker-card-title">${escapeHTML(item.title)}</div>
+                        <div class="tracker-card-company">🏢 ${escapeHTML(item.company)} • 📍 ${escapeHTML(item.location || "Remote")}</div>
+                        <div style="font-size:12px;color:#c2410c;font-weight:700;margin-top:4px;">
+                            ⏰ Closes in ${days === 0 ? "Today!" : `${days} day${days > 1 ? "s" : ""}`} (${escapeHTML(item.closingDate)})
+                        </div>
+                    </div>
+                    <div class="tracker-card-right">
+                        <button class="primary-btn" onclick="apply(${safeId})" style="padding:7px 16px;font-size:13px;">Apply Before Deadline ↗</button>
+                        <button class="secondary-btn" onclick="showDetails(${safeId})" style="padding:7px 12px;font-size:13px;">Details</button>
+                    </div>
+                </div>
+            `;
+        }).join("");
+        return;
+    }
+
+    // 5. ALL ACTIVITY TAB
+    const totalCount = viewedInternships.length + trackedApplications.length + bookmarks.length;
+    if (!totalCount) {
+        container.innerHTML = `
+            <div class="empty-state" style="padding:32px;text-align:center;background:#fff;border-radius:14px;border:1px dashed #cbd5e1;">
+                <strong>No student activity logged yet</strong>
+                <p class="company mt-4">Start exploring internships to build your personal activity history!</p>
             </div>
         `;
-    }).join("");
+        return;
+    }
+
+    let combinedHTML = "";
+    if (viewedInternships.length) {
+        combinedHTML += `<h4 style="margin:8px 0;color:#0f766e;">👁️ Recently Viewed (${viewedInternships.length})</h4>`;
+        combinedHTML += viewedInternships.slice(0, 5).map(item => `
+            <div class="tracker-card" style="margin-bottom:10px;">
+                <div class="tracker-card-left">
+                    <div class="tracker-card-title">${escapeHTML(item.title)}</div>
+                    <div class="tracker-card-company">🏢 ${escapeHTML(item.company)} • 👁️ ${formatRelativeTime(item.viewedAt)}</div>
+                </div>
+                <div class="tracker-card-right">
+                    <button class="primary-btn" onclick="apply(${JSON.stringify(String(item.id))})" style="padding:6px 14px;font-size:12px;">Apply Now ↗</button>
+                    <button class="secondary-btn" onclick="showDetails(${JSON.stringify(String(item.id))})" style="padding:6px 10px;font-size:12px;">Details</button>
+                </div>
+            </div>
+        `).join("");
+    }
+
+    if (trackedApplications.length) {
+        combinedHTML += `<h4 style="margin:16px 0 8px;color:#1e40af;">🚀 Submitted Applications (${trackedApplications.length})</h4>`;
+        combinedHTML += trackedApplications.slice(0, 5).map(app => `
+            <div class="tracker-card" style="margin-bottom:10px;">
+                <div class="tracker-card-left">
+                    <div class="tracker-card-title">${escapeHTML(app.title)}</div>
+                    <div class="tracker-card-company">🏢 ${escapeHTML(app.company)} • 🗓 ${escapeHTML(app.date || "")}</div>
+                </div>
+                <div class="tracker-card-right">
+                    <span class="status-badge status-applied">✓ Applied</span>
+                    ${app.link ? `<a class="secondary-btn" href="${escapeHTML(app.link)}" target="_blank" rel="noopener noreferrer" style="padding:6px 12px;font-size:12px;text-decoration:none;">Portal ↗</a>` : ""}
+                </div>
+            </div>
+        `).join("");
+    }
+
+    container.innerHTML = combinedHTML;
 }
 
 /* =========================================================
-   FEATURE 1: STATS & INSIGHTS DASHBOARD
+   FEATURE 1: STATS & INSIGHTS DASHBOARD (EXECUTIVE TELEMETRY)
 ========================================================= */
+function selectSkillSearch(skillName) {
+    if (!skillName) return;
+    showPage("home");
+    const searchInput = document.getElementById("searchInput");
+    if (searchInput) {
+        searchInput.value = skillName;
+        displayInternships();
+        const section = document.getElementById("home");
+        if (section) section.scrollIntoView({ behavior: "smooth" });
+    }
+}
+
 function renderInsightsDashboard() {
     const totalRoles = internships.length;
     const indiaRoles = internships.filter(isIndiaBasedListing).length;
@@ -1783,46 +2169,51 @@ function renderInsightsDashboard() {
     const configuredBoardsEl = document.getElementById("configuredJobBoardsCount");
     const boardsCount = configuredBoardsEl ? configuredBoardsEl.innerText : "46";
 
-    // Update KPI numbers
+    // 1. KPI Numbers
     const elTotal = document.getElementById("kpiTotalRoles");
     const elIndia = document.getElementById("kpiIndiaRoles");
     const elRemote = document.getElementById("kpiRemoteRoles");
     const elBoards = document.getElementById("kpiBoardsCount");
-    if (elTotal) elTotal.innerText = totalRoles;
+    if (elTotal) elTotal.innerText = String(totalRoles);
     if (elIndia) elIndia.innerText = `${indiaRoles} (${totalRoles ? Math.round((indiaRoles / totalRoles) * 100) : 0}%)`;
     if (elRemote) elRemote.innerText = `${remoteRoles} (${totalRoles ? Math.round((remoteRoles / totalRoles) * 100) : 0}%)`;
-    if (elBoards) elBoards.innerText = boardsCount;
+    if (elBoards) elBoards.innerText = String(boardsCount);
 
-    // 1. Top Hiring Companies
+    // 2. Top Hiring Companies Leaderboard
     const companyCounts = {};
     internships.forEach(i => {
         const c = String(i.company || "Other").trim();
-        if (c) companyCounts[c] = (companyCounts[c] || 0) + 1;
+        if (c && c.toLowerCase() !== "unknown" && c.toLowerCase() !== "not specified") {
+            companyCounts[c] = (companyCounts[c] || 0) + 1;
+        }
     });
     const sortedCompanies = Object.entries(companyCounts).sort((a, b) => b[1] - a[1]).slice(0, 6);
     const maxComp = sortedCompanies[0]?.[1] || 1;
     const companiesContainer = document.getElementById("topCompaniesList");
     if (companiesContainer) {
-        companiesContainer.innerHTML = sortedCompanies.map(([name, count]) => `
-            <div class="analytics-bar-item">
-                <div class="analytics-bar-label">
-                    <span>${escapeHTML(name)}</span>
-                    <strong>${count} openings</strong>
+        companiesContainer.innerHTML = sortedCompanies.map(([name, count], index) => {
+            const pct = Math.round((count / (totalRoles || 1)) * 100);
+            return `
+                <div class="analytics-bar-item">
+                    <div class="analytics-bar-label">
+                        <span><strong>#${index + 1}</strong> ${escapeHTML(name)}</span>
+                        <span><strong>${count}</strong> openings <small style="color:#64748b;">(${pct}%)</small></span>
+                    </div>
+                    <div class="analytics-bar-track">
+                        <div class="analytics-bar-fill" style="width:${Math.round((count / maxComp) * 100)}%"></div>
+                    </div>
                 </div>
-                <div class="analytics-bar-track">
-                    <div class="analytics-bar-fill" style="width:${Math.round((count / maxComp) * 100)}%"></div>
-                </div>
-            </div>
-        `).join("") || "<p class='company'>No company statistics available.</p>";
+            `;
+        }).join("") || "<p class='company'>No company statistics available.</p>";
     }
 
-    // 2. Most In-Demand Skills
+    // 3. Most In-Demand Skills with Interactive Search
     const skillCounts = {};
     internships.forEach(i => {
         if (Array.isArray(i.skills)) {
             i.skills.forEach(s => {
                 const clean = String(s).trim();
-                if (clean && clean.length > 1) {
+                if (clean && clean.length > 1 && !["not specified", "unknown", "n/a"].includes(clean.toLowerCase())) {
                     skillCounts[clean] = (skillCounts[clean] || 0) + 1;
                 }
             });
@@ -1831,22 +2222,26 @@ function renderInsightsDashboard() {
     const sortedSkills = Object.entries(skillCounts).sort((a, b) => b[1] - a[1]).slice(0, 14);
     const skillsCloud = document.getElementById("topSkillsCloud");
     if (skillsCloud) {
-        skillsCloud.innerHTML = sortedSkills.map(([skill, count]) => `
-            <span class="skill-pill">
-                ${escapeHTML(skill)}
-                <span class="skill-pill-count">${count}</span>
-            </span>
-        `).join("") || "<p class='company'>No skill tags available.</p>";
+        skillsCloud.innerHTML = sortedSkills.map(([skill, count]) => {
+            const safeSkill = JSON.stringify(String(skill));
+            return `
+                <button type="button" class="skill-pill" onclick='selectSkillSearch(${safeSkill})' title="Filter internships requiring ${escapeHTML(skill)}">
+                    ${escapeHTML(skill)}
+                    <span class="skill-pill-count">${count}</span>
+                </button>
+            `;
+        }).join("") || "<p class='company'>No skill tags available.</p>";
     }
 
-    // 3. Top Locations in India
+    // 4. Top Locations in India with Smarter Pattern Matching
     const hubNames = [
         ["Bengaluru", /\b(bengaluru|bangalore)\b/i],
+        ["Delhi-NCR / Gurgaon", /\b(delhi|gurgaon|gurugram|noida|ncr)\b/i],
         ["Hyderabad", /\bhyderabad\b/i],
         ["Pune", /\bpune\b/i],
         ["Mumbai", /\bmumbai\b/i],
-        ["Delhi-NCR / Gurgaon", /\b(delhi|gurgaon|gurugram|noida)\b/i],
-        ["Chennai", /\bchennai\b/i]
+        ["Chennai", /\bchennai\b/i],
+        ["Remote (India / Global)", /\b(remote|online|virtual|anywhere)\b/i]
     ];
     const hubCounts = hubNames.map(([label, pattern]) => {
         const count = internships.filter(i => pattern.test(i.location || "")).length;
@@ -1868,9 +2263,9 @@ function renderInsightsDashboard() {
         `).join("");
     }
 
-    // 4. Work Arrangement Breakdown
-    const online = internships.filter(i => i.type === "Online").length;
-    const offline = internships.filter(i => i.type === "Offline").length;
+    // 5. Work Arrangement Breakdown with Rich Multi-Color Bars
+    const online = internships.filter(i => i.type === "Online" || /remote|virtual|online/i.test(i.location || "")).length;
+    const offline = internships.filter(i => i.type === "Offline" && !/remote|virtual|online/i.test(i.location || "")).length;
     const hybrid = internships.filter(i => i.type === "Hybrid").length;
     const breakdownContainer = document.getElementById("workModeBreakdown");
     if (breakdownContainer) {
@@ -1890,139 +2285,6 @@ function renderInsightsDashboard() {
             </div>
         `;
     }
-}
-
-/* =========================================================
-   FEATURE 12: PEER REFERRAL SYSTEM
-========================================================= */
-let referralsData = [
-    {
-        id: "ref-1",
-        company: "Microsoft",
-        role: "Software Engineering Intern (Summer 2026)",
-        name: "Sai Kumar V. (2024 Alumnus)",
-        batch: "2025 & 2026 Batch Graduates",
-        skills: "Data Structures, Algorithms, Python / C++",
-        contact: "https://www.linkedin.com",
-        instructions: "Connect on LinkedIn with your updated resume and mention Sri Vasavi placement referral."
-    },
-    {
-        id: "ref-2",
-        company: "Infosys",
-        role: "Specialist Programmer / Digital Specialist Engineer",
-        name: "Pooja R. (2023 Alumna)",
-        batch: "2025 & 2026 Batches (CSE, IT, ECE)",
-        skills: "Java, DBMS, Cloud Basics, Problem Solving",
-        contact: "https://www.linkedin.com",
-        instructions: "Drop a note on LinkedIn with your college roll number and resume PDF link."
-    },
-    {
-        id: "ref-3",
-        company: "Amazon",
-        role: "Applied Scientist / SDE Intern",
-        name: "Kiran Teja (2024 Alumnus)",
-        batch: "2026 Batch",
-        skills: "Python, Machine Learning, Deep Learning, SQL",
-        contact: "https://www.linkedin.com",
-        instructions: "Send your GitHub profile, 2 top projects, and resume on LinkedIn."
-    }
-];
-
-function loadReferrals() {
-    try {
-        const saved = JSON.parse(localStorage.getItem("studentReferrals"));
-        if (Array.isArray(saved) && saved.length) referralsData = saved;
-    } catch (e) {}
-
-    if (isFirebaseConfigured()) {
-        try {
-            ensureFirebase();
-            firebase.database().ref("referrals").once("value").then(snapshot => {
-                const val = snapshot.val();
-                if (val && typeof val === "object") {
-                    const loaded = Object.values(val);
-                    if (loaded.length) {
-                        referralsData = loaded;
-                        localStorage.setItem("studentReferrals", JSON.stringify(referralsData));
-                        if (document.getElementById("referrals")?.classList.contains("active")) {
-                            renderReferrals();
-                        }
-                    }
-                }
-            });
-        } catch (e) {}
-    }
-}
-
-function openPostReferralModal() {
-    const modal = document.getElementById("postReferralModal");
-    if (modal) modal.classList.add("show");
-}
-
-function closePostReferralModal() {
-    const modal = document.getElementById("postReferralModal");
-    if (modal) modal.classList.remove("show");
-}
-
-function submitReferral(e) {
-    e.preventDefault();
-    const company = document.getElementById("refCompany").value.trim();
-    const role = document.getElementById("refRole").value.trim();
-    const name = document.getElementById("refName").value.trim();
-    const batch = document.getElementById("refBatch").value.trim();
-    const skills = document.getElementById("refSkills").value.trim();
-    const contact = document.getElementById("refContact").value.trim();
-    const instructions = document.getElementById("refInstructions").value.trim();
-
-    if (!company || !role || !name || !contact) return;
-
-    const newRef = {
-        id: `ref-${Date.now()}`,
-        company, role, name, batch, skills, contact, instructions
-    };
-
-    referralsData.unshift(newRef);
-    localStorage.setItem("studentReferrals", JSON.stringify(referralsData));
-
-    if (isFirebaseConfigured()) {
-        try {
-            ensureFirebase();
-            firebase.database().ref(`referrals/${newRef.id}`).set(newRef).catch(console.warn);
-        } catch (e) {}
-    }
-
-    closePostReferralModal();
-    renderReferrals();
-    alert("Referral opening published! Juniors can now connect with you.");
-}
-
-function requestReferral(refId) {
-    const ref = referralsData.find(r => r.id === refId);
-    if (!ref) return;
-    if (ref.contact.startsWith("http")) {
-        window.open(ref.contact, "_blank", "noopener,noreferrer");
-    } else {
-        alert(`Contact referrer at: ${ref.contact}\nInstructions: ${ref.instructions || "Mention SVEC student referral."}`);
-    }
-}
-
-function renderReferrals() {
-    const container = document.getElementById("referralContainer");
-    if (!container) return;
-
-    container.innerHTML = referralsData.map(ref => `
-        <div class="referral-card">
-            <div>
-                <div class="referral-card-company">${escapeHTML(ref.company)}</div>
-                <div class="referral-card-role">${escapeHTML(ref.role)}</div>
-                <div class="referral-card-senior">Referrer: <strong>${escapeHTML(ref.name)}</strong></div>
-                ${ref.batch ? `<div style="font-size:12px;color:#0f766e;margin-bottom:8px;font-weight:600;">🎓 ${escapeHTML(ref.batch)}</div>` : ""}
-                ${ref.skills ? `<div class="referral-card-skills">⚡ <strong>Required:</strong> ${escapeHTML(ref.skills)}</div>` : ""}
-                ${ref.instructions ? `<div style="font-size:12px;color:var(--theme-muted,#64748b);background:#f8fafc;padding:8px 10px;border-radius:8px;margin-bottom:14px;">ℹ️ ${escapeHTML(ref.instructions)}</div>` : ""}
-            </div>
-            <button class="primary-btn" onclick="requestReferral('${ref.id}')" style="width:100%;margin-top:auto;">Request Referral ↗</button>
-        </div>
-    `).join("");
 }
 
 /* =========================================================
@@ -2167,26 +2429,29 @@ Object.assign(window, {
     clearInternshipFilters,
     closeAddTrackerModal,
     closeModal,
-    closePostReferralModal,
     closeReviewsModal,
     deleteInternship,
+    deleteStudentAccount,
     deleteTrackedApplication,
     displayAdminInternships,
+    displayApprovedStudents,
     displayInternships,
+    displayStudentRequests,
+    filterApprovedStudents,
     filterTrackerStatus,
     findMatches,
     openAddTrackerModal,
     openCompanyReviews,
     openFounderLogin,
-    openPostReferralModal,
     rejectStudent,
     registerStudent,
+    removeViewedInternship,
     resetStudentPassword,
-    requestReferral,
     returnToStudentLogin,
     renderInsightsDashboard,
-    renderReferrals,
     renderTrackerPage,
+    revokeStudentApproval,
+    selectSkillSearch,
     selectType,
     showDetails,
     showPage,
@@ -2197,7 +2462,6 @@ Object.assign(window, {
     studentLogout,
     submitCompanyReview,
     submitCustomTracker,
-    submitReferral,
     switchAdminTab,
     switchReviewsTab,
     togglePassword,
@@ -2209,6 +2473,5 @@ displayInternships();
 displayAdminInternships();
 updateHomeStats();
 updateTrackerMetrics();
-loadReferrals();
 listenToMetadata();
 publishInternshipUpdates();

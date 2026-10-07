@@ -13,12 +13,16 @@
             ? savedTheme
             : "light";
         const savedSession = localStorage.getItem("studentSession");
-        if (savedSession) {
-            window.__PRELOADED_STUDENT__ = JSON.parse(savedSession);
-            document.documentElement.classList.add("has-session");
+        const adminAuth = sessionStorage.getItem("adminAuth") === "true";
+        if (savedSession || adminAuth) {
+            if (savedSession) window.__PRELOADED_STUDENT__ = JSON.parse(savedSession);
+            document.documentElement.classList.add("is-authenticated");
+        } else {
+            document.documentElement.classList.add("is-guest");
         }
     } catch (error) {
         document.documentElement.dataset.theme = "light";
+        document.documentElement.classList.add("is-guest");
     }
 </script>
 <link rel="stylesheet" href="style.css">
@@ -41,7 +45,7 @@
 <div id="theme-toggle-root"></div>
 
 <!-- ================= AUTH GATE ================= -->
-<section id="authGate" hidden>
+<section id="authGate">
     <div class="auth-card">
         <img src="vasavi-logo.jpg" alt="Sri Vasavi Engineering College" class="auth-logo-img">
         <h1>InternMatch</h1>
@@ -92,9 +96,8 @@
         <button class="nav-btn" onclick="showPage('home')">Home</button>
         <button class="nav-btn" onclick="showPage('preferences')">Find Internship</button>
         <button class="nav-btn" onclick="showPage('favorites')">Saved <span id="savedCount">0</span></button>
-        <button class="nav-btn" onclick="showPage('tracker')">Tracker 📋 <span id="trackerBadge" class="nav-counter">0</span></button>
-        <button class="nav-btn" onclick="showPage('insights')">Insights 📊</button>
-        <button class="nav-btn" onclick="showPage('referrals')">Referrals 🤝</button>
+        <button class="nav-btn" onclick="showPage('tracker')">Tracker <span id="trackerBadge" class="nav-counter">0</span></button>
+        <button class="nav-btn" onclick="showPage('insights')">Insights</button>
         <button class="nav-btn" onclick="showPage('profile')">My Profile</button>
         <button class="nav-btn logout-nav-btn" onclick="studentLogout()">Logout</button>
     </div>
@@ -312,42 +315,41 @@
     <div class="section">
         <div class="section-title">
             <div>
-                <h2>📋 Application Tracker</h2>
-                <span>Keep track of every internship application, interview stage, and offer</span>
+                <h2>Application Tracker</h2>
+                <span>Real-time activity log for your viewed internships, applications, and saved roles</span>
             </div>
-            <button class="primary-btn" type="button" onclick="openAddTrackerModal()">+ Track Application</button>
+            <button class="primary-btn" type="button" onclick="openAddTrackerModal()">+ Track External Application</button>
         </div>
 
         <div class="tracker-summary-grid">
-            <div class="tracker-metric-card">
-                <span class="tracker-metric-num" id="trackerTotalCount">0</span>
-                <span class="tracker-metric-label">Total Tracked</span>
+            <div class="tracker-metric-card" onclick="filterTrackerStatus('viewed', document.querySelector('[data-status=viewed]'))" title="Click to view all viewed internships">
+                <span class="tracker-metric-num" id="trackerTotalViewedCount">0</span>
+                <span class="tracker-metric-label">Internships Viewed 👁️</span>
             </div>
-            <div class="tracker-metric-card">
+            <div class="tracker-metric-card" onclick="filterTrackerStatus('Applied', document.querySelector('[data-status=Applied]'))" title="Click to view all applied internships">
                 <span class="tracker-metric-num" id="trackerAppliedCount">0</span>
-                <span class="tracker-metric-label">Applied</span>
+                <span class="tracker-metric-label">Applied 🚀</span>
             </div>
-            <div class="tracker-metric-card">
-                <span class="tracker-metric-num" id="trackerInterviewCount">0</span>
-                <span class="tracker-metric-label">Interviewing</span>
+            <div class="tracker-metric-card" onclick="filterTrackerStatus('Saved', document.querySelector('[data-status=Saved]'))" title="Click to view all saved internships">
+                <span class="tracker-metric-num" id="trackerSavedCount">0</span>
+                <span class="tracker-metric-label">Saved to Apply ⭐</span>
             </div>
-            <div class="tracker-metric-card highlight-offer">
-                <span class="tracker-metric-num" id="trackerOfferCount">0</span>
-                <span class="tracker-metric-label">Offers 🎉</span>
+            <div class="tracker-metric-card highlight-deadline" onclick="filterTrackerStatus('ClosingSoon', document.querySelector('[data-status=ClosingSoon]'))" title="Click to view upcoming deadlines">
+                <span class="tracker-metric-num" id="trackerClosingSoonCount">0</span>
+                <span class="tracker-metric-label">Closing Soon ⏳</span>
             </div>
         </div>
 
         <div class="tracker-status-tabs" role="tablist">
-            <button class="tracker-tab active" data-status="all" onclick="filterTrackerStatus('all', this)">All (<span id="tabCountAll">0</span>)</button>
-            <button class="tracker-tab" data-status="Applied" onclick="filterTrackerStatus('Applied', this)">Applied (<span id="tabCountApplied">0</span>)</button>
-            <button class="tracker-tab" data-status="Interviewing" onclick="filterTrackerStatus('Interviewing', this)">Interviewing (<span id="tabCountInterviewing">0</span>)</button>
-            <button class="tracker-tab" data-status="Offer" onclick="filterTrackerStatus('Offer', this)">Offers (<span id="tabCountOffer">0</span>)</button>
-            <button class="tracker-tab" data-status="Saved" onclick="filterTrackerStatus('Saved', this)">Saved (<span id="tabCountSaved">0</span>)</button>
-            <button class="tracker-tab" data-status="Rejected" onclick="filterTrackerStatus('Rejected', this)">Rejected (<span id="tabCountRejected">0</span>)</button>
+            <button class="tracker-tab active" data-status="viewed" onclick="filterTrackerStatus('viewed', this)">👁️ Viewed (<span id="tabCountViewed">0</span>)</button>
+            <button class="tracker-tab" data-status="Applied" onclick="filterTrackerStatus('Applied', this)">🚀 Applied (<span id="tabCountApplied">0</span>)</button>
+            <button class="tracker-tab" data-status="Saved" onclick="filterTrackerStatus('Saved', this)">⭐ Saved (<span id="tabCountSaved">0</span>)</button>
+            <button class="tracker-tab" data-status="ClosingSoon" onclick="filterTrackerStatus('ClosingSoon', this)">⏳ Closing Soon (<span id="tabCountClosingSoon">0</span>)</button>
+            <button class="tracker-tab" data-status="all" onclick="filterTrackerStatus('all', this)">All Activity (<span id="tabCountAll">0</span>)</button>
         </div>
 
         <div class="tracker-list" id="trackerListContainer">
-            <p class="company">No applications tracked yet. Click "Apply" on any internship or click "+ Track Application" to start!</p>
+            <p class="company">Explore internships to see your real-time viewed history here!</p>
         </div>
     </div>
 </section>
@@ -355,41 +357,55 @@
 <!-- ================= STATS & INSIGHTS DASHBOARD ================= -->
 <section id="insights" class="page">
     <div class="section">
-        <div class="section-title">
-            <div>
-                <h2>📊 Internship Trends & Analytics</h2>
-                <span>Real-time intelligence from hundreds of verified tech listings</span>
+        <div class="insights-expert-header">
+            <div class="insights-expert-titles">
+                <div class="insights-status-pill">
+                    <span class="live-pulse"></span>
+                    <span>LIVE MARKET INTELLIGENCE</span>
+                    <span class="pill-divider">•</span>
+                    <span>46 JOB BOARDS CONNECTED</span>
+                </div>
+                <h2>Internship Trends & Analytics</h2>
+                <p class="company">Real-time telemetry, hiring employer rankings, tech stack demands, and geographic distribution across verified tech listings.</p>
             </div>
-            <button class="secondary-btn" onclick="renderInsightsDashboard()">🔄 Refresh Insights</button>
+            <div class="insights-actions">
+                <button class="primary-btn insights-sync-btn" onclick="renderInsightsDashboard()">
+                    <span>🔄</span> Refresh Insights
+                </button>
+            </div>
         </div>
 
         <div class="insights-kpi-grid">
-            <div class="insights-kpi-card">
+            <div class="insights-kpi-card kpi-card-teal">
                 <div class="kpi-icon">💼</div>
                 <div class="kpi-info">
                     <strong id="kpiTotalRoles">0</strong>
                     <span>Total Live Roles</span>
+                    <small class="kpi-hint">100% verified employer ATS</small>
                 </div>
             </div>
-            <div class="insights-kpi-card">
+            <div class="insights-kpi-card kpi-card-emerald">
                 <div class="kpi-icon">🇮🇳</div>
                 <div class="kpi-info">
                     <strong id="kpiIndiaRoles">0</strong>
                     <span>India Opportunities</span>
+                    <small class="kpi-hint">Bengaluru, Hyderabad, NCR</small>
                 </div>
             </div>
-            <div class="insights-kpi-card">
+            <div class="insights-kpi-card kpi-card-sky">
                 <div class="kpi-icon">🌐</div>
                 <div class="kpi-info">
                     <strong id="kpiRemoteRoles">0</strong>
                     <span>Remote / Online</span>
+                    <small class="kpi-hint">Work from anywhere</small>
                 </div>
             </div>
-            <div class="insights-kpi-card">
+            <div class="insights-kpi-card kpi-card-indigo">
                 <div class="kpi-icon">📡</div>
                 <div class="kpi-info">
                     <strong id="kpiBoardsCount">46</strong>
                     <span>Verified Job Boards</span>
+                    <small class="kpi-hint">Direct company sync</small>
                 </div>
             </div>
         </div>
@@ -397,58 +413,76 @@
         <div class="insights-analytics-layout">
             <div class="analytics-card">
                 <div class="analytics-card-header">
-                    <h3>🏢 Top Hiring Companies</h3>
-                    <span>Most active recruiters in the feed</span>
+                    <div>
+                        <h3>🏢 Top Hiring Employers</h3>
+                        <span>Companies with the highest active intern postings</span>
+                    </div>
                 </div>
                 <div class="analytics-bar-list" id="topCompaniesList"></div>
             </div>
 
             <div class="analytics-card">
                 <div class="analytics-card-header">
-                    <h3>⚡ Most In-Demand Skills</h3>
-                    <span>Required technical stack for 2026</span>
+                    <div>
+                        <h3>⚡ Most In-Demand Skills</h3>
+                        <span>Required technical competencies (Click to search)</span>
+                    </div>
                 </div>
                 <div class="skills-cloud" id="topSkillsCloud"></div>
             </div>
 
             <div class="analytics-card">
                 <div class="analytics-card-header">
-                    <h3>📍 Top Hiring Hubs in India</h3>
-                    <span>City-wise availability</span>
+                    <div>
+                        <h3>📍 Top Hiring Hubs in India</h3>
+                        <span>Geographic talent demand across major tech cities</span>
+                    </div>
                 </div>
                 <div class="analytics-bar-list" id="topLocationsList"></div>
             </div>
 
             <div class="analytics-card">
                 <div class="analytics-card-header">
-                    <h3>💼 Work Arrangement Breakdown</h3>
-                    <span>Online vs Onsite vs Hybrid</span>
+                    <div>
+                        <h3>💼 Work Arrangement Breakdown</h3>
+                        <span>Distribution across Online, Onsite & Hybrid arrangements</span>
+                    </div>
                 </div>
                 <div class="work-mode-breakdown" id="workModeBreakdown"></div>
             </div>
         </div>
-    </div>
-</section>
 
-<!-- ================= PEER REFERRAL NETWORK ================= -->
-<section id="referrals" class="page">
-    <div class="section">
-        <div class="section-title">
-            <div>
-                <h2>🤝 Student & Alumni Referral Network</h2>
-                <span>Connect with placed seniors and alumni for direct employee referrals</span>
+        <div class="analytics-card insights-takeaways-card" style="margin-top: 24px;">
+            <div class="analytics-card-header">
+                <div>
+                    <h3>💡 Market Intelligence & Key Takeaways</h3>
+                    <span>Data-driven strategies for engineering students & freshers</span>
+                </div>
             </div>
-            <button class="primary-btn" onclick="openPostReferralModal()">+ Offer a Referral</button>
-        </div>
-
-        <div class="referral-banner">
-            <div class="referral-banner-icon">🎯</div>
-            <div>
-                <strong>Alumni / Placed Senior?</strong> Help juniors at Sri Vasavi Engineering College crack top roles by posting your employee referral openings.
+            <div class="insights-takeaways-grid">
+                <div class="takeaway-item">
+                    <div class="takeaway-icon">🎯</div>
+                    <div class="takeaway-text">
+                        <strong>Skills Premium</strong>
+                        <p>Python, Machine Learning, and SQL lead overall technical mentions in 2026. Strong fundamentals in algorithms offer the highest callback rate.</p>
+                    </div>
+                </div>
+                <div class="takeaway-item">
+                    <div class="takeaway-icon">🌐</div>
+                    <div class="takeaway-text">
+                        <strong>Remote Accessibility</strong>
+                        <p>Over 10% of global tech roles accept full remote work, enabling students to intern at global companies without relocation costs.</p>
+                    </div>
+                </div>
+                <div class="takeaway-item">
+                    <div class="takeaway-icon">⚡</div>
+                    <div class="takeaway-text">
+                        <strong>Early Application Advantage</strong>
+                        <p>Most ATS pipelines review on a rolling basis. Applying within the first 48 hours of an opening significantly boosts screening odds.</p>
+                    </div>
+                </div>
             </div>
         </div>
-
-        <div class="referral-grid" id="referralContainer"></div>
     </div>
 </section>
 
@@ -559,7 +593,7 @@
             <button class="primary-btn mt-20" onclick="addInternship()">+ Publish Internship</button>
         </div>
 
-        <!-- PANE 3: STUDENT APPROVALS -->
+        <!-- PANE 3: STUDENT APPROVALS & MANAGEMENT -->
         <div id="adminPaneStudents" class="admin-pane" hidden>
             <div class="section-title">
                 <div>
@@ -567,15 +601,22 @@
                     <span>Approval required before students can sign in</span>
                 </div>
             </div>
-            <div id="studentRequestList"></div>
+            <div id="studentRequestList" style="margin-bottom: 28px;"></div>
 
             <div class="section-title mt-35">
                 <div>
-                    <h3>Approved Students Directory</h3>
+                    <h3>Manage Approved Students</h3>
                     <span id="approvedStudentCount"></span>
                 </div>
             </div>
-            <div id="approvedStudentList"></div>
+
+            <div class="admin-toolbar" style="margin-bottom: 16px;">
+                <input type="text" id="adminStudentSearch" class="admin-search-input"
+                       placeholder="Search approved students by name, email, roll number, or branch..."
+                       oninput="filterApprovedStudents()" aria-label="Search approved students">
+            </div>
+
+            <div id="approvedStudentList" class="admin-compact-grid"></div>
         </div>
     </div>
 </section>
@@ -667,26 +708,6 @@
     </div>
 </div>
 
-<!-- ================= POST REFERRAL MODAL ================= -->
-<div class="modal" id="postReferralModal" role="dialog" aria-modal="true" aria-labelledby="postReferralTitle">
-    <div class="modal-content">
-        <button class="close" type="button" aria-label="Close referral modal" onclick="closePostReferralModal()">×</button>
-        <h2 id="postReferralTitle" style="color:#0f766e;margin-bottom:6px;">🤝 Offer a Student Referral</h2>
-        <p class="company mb-20">Help students and freshers from college get referred for active roles at your company.</p>
-        <form onsubmit="event.preventDefault(); submitReferral(event);">
-            <div class="admin-grid">
-                <div><label class="admin-label" for="refCompany">Company Name *</label><input class="admin-input" id="refCompany" required placeholder="e.g. Microsoft, Infosys, Amazon"></div>
-                <div><label class="admin-label" for="refRole">Position / Role *</label><input class="admin-input" id="refRole" required placeholder="e.g. Graduate Trainee / SDE Intern"></div>
-                <div><label class="admin-label" for="refName">Your Name & Batch *</label><input class="admin-input" id="refName" required placeholder="e.g. Harsha K. (2024 Alumnus)"></div>
-                <div><label class="admin-label" for="refBatch">Eligible Passing Batches</label><input class="admin-input" id="refBatch" placeholder="e.g. 2025 & 2026 batches"></div>
-                <div class="full"><label class="admin-label" for="refSkills">Key Skills Required</label><input class="admin-input" id="refSkills" placeholder="e.g. Python, SQL, React, Git"></div>
-                <div class="full"><label class="admin-label" for="refContact">Referral Contact / LinkedIn Link *</label><input class="admin-input" id="refContact" required placeholder="e.g. https://linkedin.com/in/... or student@alumni.in"></div>
-                <div class="full"><label class="admin-label" for="refInstructions">Instructions for Applicants</label><textarea class="admin-input" id="refInstructions" rows="2" placeholder="e.g. DM me on LinkedIn with your 1-page resume and GitHub link. Mention SVEC Alumni referral."></textarea></div>
-            </div>
-            <button class="primary-btn mt-20 full-width" type="submit">Post Referral Opening</button>
-        </form>
-    </div>
-</div>
 
 <!-- ================= FOOTER ================= -->
 <footer>
