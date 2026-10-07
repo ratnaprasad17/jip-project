@@ -1,6 +1,6 @@
 "use strict";
 
-const { cert, initializeApp } = require("firebase-admin/app");
+const { cert, deleteApp, initializeApp } = require("firebase-admin/app");
 const { getDatabase } = require("firebase-admin/database");
 const {
     fetchSource,
@@ -65,11 +65,15 @@ async function syncInternships(database = getDatabase()) {
 
 async function main() {
     const serviceAccount = loadServiceAccount();
-    initializeApp({
+    const app = initializeApp({
         credential: cert(serviceAccount),
         databaseURL: DATABASE_URL
     });
-    await syncInternships();
+    try {
+        await syncInternships();
+    } finally {
+        await deleteApp(app);
+    }
 }
 
 if (require.main === module) {
