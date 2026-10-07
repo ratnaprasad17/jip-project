@@ -831,12 +831,11 @@ function displayFeatured() {
         card.className = "feature-card";
         const workMode = hasPublishedValue(internship.type) ? internship.type : "Work mode not listed";
         card.innerHTML = `
-            <div class="feature-card-top" aria-hidden="true">
-                <span class="feature-brand-mark">${escapeHTML((internship.company || "I").charAt(0).toUpperCase())}</span>
-                <span class="feature-brand-label">FEATURED ROLE</span>
+            <div class="feature-card-top">
+                <span class="feature-brand-company">${escapeHTML(internship.company || "Company")}</span>
+                <span class="feature-brand-label">FEATURED</span>
             </div>
             <h3>${escapeHTML(internship.title)}</h3>
-            <div class="company">${escapeHTML(internship.company)}</div>
             ${hasPublishedValue(internship.location) ? `<div class="feature-info">📍 ${escapeHTML(internship.location)}</div>` : ""}
             ${hasPublishedValue(internship.stipend) ? `<div class="feature-info">💰 ${escapeHTML(internship.stipend)}</div>` : ""}
             <div class="feature-info">${escapeHTML(workMode)}</div>

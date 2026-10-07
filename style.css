@@ -339,21 +339,8 @@ button:focus-visible, input:focus-visible, select:focus-visible {
     box-shadow: 0 14px 28px rgba(13, 35, 31, .2);
 }
 .feature-card-top { display: flex; min-height: 40px; align-items: center; justify-content: space-between; gap: 12px; }
-.feature-brand-mark {
-    display: grid;
-    width: 42px;
-    height: 42px;
-    flex: 0 0 42px;
-    place-items: center;
-    border: 1px solid rgba(237, 202, 126, .55);
-    border-radius: 11px;
-    background: linear-gradient(145deg, rgba(237, 202, 126, .2), rgba(237, 202, 126, .06));
-    color: #f2d18b;
-    font-size: 19px;
-    font-weight: 700;
-}
-.feature-brand-label { color: #aad2c1; font-size: 10px; font-weight: 700; letter-spacing: 1px; }
-.feature-card .company { opacity: .8; margin: 7px 0 18px; }
+.feature-brand-company { color: #f0d28e; font-size: 14px; font-weight: 700; }
+.feature-brand-label { color: #aad2c1; font-size: 10px; font-weight: 700; }
 .feature-card h3 {
     min-height: 4.2em;
     overflow: hidden;
@@ -427,7 +414,28 @@ button:focus-visible, input:focus-visible, select:focus-visible {
     font-size: 22px;
 }
 
-.bookmark { border: none; background: transparent; font-size: 23px; }
+.bookmark {
+    display: grid;
+    width: 40px;
+    height: 40px;
+    flex: 0 0 40px;
+    place-items: center;
+    padding: 0;
+    border: 1px solid #f1c7d0;
+    border-radius: 50%;
+    background: #fff6f7;
+    color: #c52950;
+    font-family: inherit;
+    font-size: 23px;
+    line-height: 1;
+    transition: background-color .16s ease, border-color .16s ease, color .16s ease, transform .16s ease;
+}
+.bookmark:hover { transform: translateY(-1px); background: #ffe9ed; border-color: #e9798e; }
+.bookmark[aria-pressed="true"] { background: #ffe1e7; border-color: #e95772; color: #c01842; }
+.bookmark:focus-visible { outline: 3px solid rgba(211, 58, 87, .35); outline-offset: 2px; }
+:root[data-theme="dark"] .bookmark { background: #352429; border-color: #89505c; color: #ff9bad; }
+:root[data-theme="dark"] .bookmark:hover,
+:root[data-theme="dark"] .bookmark[aria-pressed="true"] { background: #522b37; border-color: #f2798e; color: #ff9bad; }
 .card h3 { margin: 17px 0 6px; }
 .company { color: #64748b; font-size: 14px; }
 
