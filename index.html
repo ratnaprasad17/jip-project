@@ -10,7 +10,7 @@
         const savedTheme = localStorage.getItem("siteTheme");
         document.documentElement.dataset.theme = savedTheme === "light" || savedTheme === "dark"
             ? savedTheme
-            : (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+            : "light";
     } catch (error) {
         document.documentElement.dataset.theme = "light";
     }

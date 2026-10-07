@@ -391,6 +391,13 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .details { display: grid; gap: 8px; color: #475569; font-size: 14px; }
 
 .card-actions { display: flex; gap: 8px; margin-top: 18px; }
+.card-actions > button {
+    display: inline-flex;
+    min-height: 44px;
+    align-items: center;
+    justify-content: center;
+    line-height: 1.2;
+}
 
 .secondary-btn {
     flex: 1;
@@ -552,14 +559,14 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 /* =========================================================
    FOOTER
 ========================================================= */
-footer {
+body > footer {
     margin-top: 50px;
     padding: 30px;
     text-align: center;
     background: #111827;
     color: #9ca3af;
 }
-footer strong { color: white; }
+body > footer strong { color: white; }
 
 .footer-logo-img {
     width: 75px;
@@ -807,7 +814,13 @@ footer strong { color: white; }
 .detail-grid dt { margin-bottom: 4px; color: var(--theme-muted, #64748b); font-size: 11px; font-weight: bold; text-transform: uppercase; }
 .detail-grid dd { color: var(--theme-ink, #172033); font-size: 13px; line-height: 1.45; overflow-wrap: anywhere; }
 .detail-about p { color: var(--theme-muted, #64748b); font-size: 14px; line-height: 1.65; white-space: pre-line; overflow-wrap: anywhere; }
-.detail-actions { padding-top: 22px; }
+.detail-actions {
+    margin: 0;
+    padding: 22px 0 0;
+    background: transparent;
+    color: var(--theme-ink, #172033);
+    text-align: initial;
+}
 .detail-apply { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; text-decoration: none; }
 .detail-no-link { color: var(--theme-muted, #64748b); font-size: 13px; }
 
@@ -852,14 +865,14 @@ footer strong { color: white; }
 
 :root[data-theme="dark"] {
     color-scheme: dark;
-    --theme-page: #10191b;
-    --theme-surface: #192629;
-    --theme-soft: #202f32;
-    --theme-ink: #e4eeeb;
-    --theme-muted: #a8bab7;
-    --theme-line: #34484b;
-    --theme-tag: #2b3c3f;
-    --theme-tag-ink: #d0ddda;
+    --theme-page: #111817;
+    --theme-surface: #192321;
+    --theme-soft: #202d29;
+    --theme-ink: #f0f5f2;
+    --theme-muted: #a4b5ae;
+    --theme-line: #354640;
+    --theme-tag: #293832;
+    --theme-tag-ink: #d4e1db;
 }
 
 body { background: var(--theme-page); color: var(--theme-ink); }
@@ -948,6 +961,11 @@ body { background: var(--theme-page); color: var(--theme-ink); }
 :root[data-theme="dark"] .modal-content { background: var(--theme-surface); color: var(--theme-ink); }
 
 .modal-content { max-width: 720px; border-radius: 12px; }
+
+@media (max-width: 650px) {
+    .card-actions > button { min-height: 42px; }
+    body > footer { margin-top: 30px; padding: 24px 14px; font-size: 13px; }
+}
 .chat-india-flag { width: fit-content; padding: 2px 6px; border-radius: 4px; background: #def3e8; color: #155b3b !important; font-weight: bold; }
 :root[data-theme="dark"] .chat-india-flag { background: #24443c; color: #a7e4c1 !important; }
 
