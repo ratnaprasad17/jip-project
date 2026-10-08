@@ -307,6 +307,7 @@ function isFirebaseConfigured() {
    LOADING SCREEN HELPERS
 ========================================================= */
 function showLoader(text = "Logging you in...") {
+    document.documentElement.classList.add("showing-loader");
     const overlay = document.getElementById("loadingOverlay");
     if (!overlay) return;
     const loaderText = document.getElementById("loaderText");
@@ -341,6 +342,7 @@ function showLoaderSuccess(text = "Welcome!", callback) {
 function hideLoader() {
     const overlay = document.getElementById("loadingOverlay");
     if (overlay) overlay.classList.remove("show");
+    document.documentElement.classList.remove("showing-loader");
 }
 
 /* =========================================================

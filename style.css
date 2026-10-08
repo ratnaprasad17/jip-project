@@ -29,6 +29,9 @@ html.is-guest #authGate {
 html.is-guest #theme-toggle-root {
     display: none !important;
 }
+html.is-guest:not(.showing-loader) #loadingOverlay {
+    display: none;
+}
 
 /* Authenticated state */
 html.is-authenticated #authGate {
