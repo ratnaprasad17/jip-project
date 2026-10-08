@@ -148,6 +148,10 @@ function escapeHTML(value) {
     })[character]);
 }
 
+function escapeInlineString(value) {
+    return escapeHTML(JSON.stringify(String(value)));
+}
+
 function hasPublishedValue(value) {
     const normalized = String(value || "").trim().toLowerCase();
     return normalized !== "" && !["not specified", "unknown", "n/a"].includes(normalized);
@@ -786,8 +790,10 @@ async function studentLogin() {
         showLoaderSuccess(`Welcome, ${student.name.split(" ")[0]}!`, () => {
             document.body.classList.remove("auth-locked", "founder-login");
             document.getElementById("authGate").hidden = true;
-            document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
-            document.getElementById("home").classList.add("active");
+            if (!showProfileToolFromHash()) {
+                document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+                document.getElementById("home").classList.add("active");
+            }
             updateStudentProfile();
         });
 
@@ -1241,12 +1247,39 @@ function showPage(pageId) {
     if (pageId === "profile") {
         updateStudentProfile();
     }
-    if (pageId === "ats") {
-        initAtsPage();
+}
+
+function showProfileToolFromHash() {
+    const toolId = window.location.hash.slice(1);
+    if (!["ats", "coverletter"].includes(toolId)) return false;
+
+    showPage("profile");
+    const tool = document.getElementById(toolId);
+    if (tool) {
+        tool.open = true;
+        tool.scrollIntoView({ behavior: "smooth", block: "start" });
     }
-    if (pageId === "coverletter") {
-        initCoverLetterPage();
-    }
+    return true;
+}
+
+function mountProfileTools() {
+    const tools = [
+        { id: "atsTool", targetId: "atsToolContent", initialize: initAtsPage },
+        { id: "coverletterTool", targetId: "coverletterToolContent", initialize: initCoverLetterPage }
+    ];
+
+    tools.forEach(({ id, targetId, initialize }) => {
+        const content = document.getElementById(id);
+        const target = document.getElementById(targetId);
+        const accordion = target?.closest("details");
+        if (!content || !target || !accordion) return;
+
+        content.hidden = false;
+        target.appendChild(content);
+        accordion.addEventListener("toggle", () => {
+            if (accordion.open) initialize();
+        });
+    });
 }
 
 function updateHomeStats() {
@@ -1281,7 +1314,7 @@ function displayFeatured() {
             ${hasPublishedValue(internship.location) ? `<div class="feature-info">📍 ${escapeHTML(internship.location)}</div>` : ""}
             ${hasPublishedValue(internship.stipend) ? `<div class="feature-info">💰 ${escapeHTML(internship.stipend)}</div>` : ""}
             <div class="feature-info">${escapeHTML(workMode)}</div>
-            <button class="feature-view" onclick="showDetails(${Number(internship.id)})">View Internship</button>
+            <button class="feature-view" onclick="showDetails(${escapeInlineString(internship.id)})">View Internship</button>
         `;
         container.appendChild(card);
     });
@@ -1388,8 +1421,7 @@ function displayInternships() {
    CREATE CARD
 ========================================================= */
 function createCard(internship) {
-    const internshipId = Number(internship.id);
-    const safeId = Number.isSafeInteger(internshipId) ? internshipId : "null";
+    const safeId = escapeInlineString(internship.id);
     const isApplied = trackedApplications.some(a => String(a.internshipId) === String(internship.id) && a.status === "Applied");
     const tags = [
         hasPublishedValue(internship.specialization) && internship.specialization !== "General"
@@ -1480,8 +1512,7 @@ function findMatches() {
     const container = document.getElementById("resultsContainer");
     let html = "";
     results.forEach(internship => {
-        const internshipId = Number(internship.id);
-        const safeId = Number.isSafeInteger(internshipId) ? internshipId : "null";
+        const safeId = escapeInlineString(internship.id);
         const tags = [
             hasPublishedValue(internship.specialization) && internship.specialization !== "General"
                 ? `<span class="tag">${escapeHTML(internship.specialization)}</span>` : "",
@@ -1571,7 +1602,7 @@ function showDetails(id) {
             </section>
             <footer class="detail-actions">
                 ${applicationUrl
-                    ? `<a class="primary-btn detail-apply" href="${escapeHTML(applicationUrl)}" target="_blank" rel="noopener noreferrer" onclick="autoTrackApplication(findInternshipById(${Number(internship.id)}))">Open application <span aria-hidden="true">↗</span></a>`
+                    ? `<a class="primary-btn detail-apply" data-track-internship="${escapeHTML(String(internship.id))}" href="${escapeHTML(applicationUrl)}" target="_blank" rel="noopener noreferrer">Open application <span aria-hidden="true">↗</span></a>`
                     : "<p class=\"detail-no-link\">An application link is not available for this listing.</p>"}
             </footer>
         </article>
@@ -1581,9 +1612,10 @@ function showDetails(id) {
 }
 
 function getSmartInsightsHTML(internship, skills) {
-    const studentSkills = currentStudent?.skills
-        ? currentStudent.skills.split(",").map(s => s.trim().toLowerCase()).filter(Boolean)
-        : (document.getElementById("skills")?.value || "").split(",").map(s => s.trim().toLowerCase()).filter(Boolean);
+    const rawStudentSkills = currentStudent?.skills || document.getElementById("skills")?.value || "";
+    const studentSkills = (Array.isArray(rawStudentSkills) ? rawStudentSkills : rawStudentSkills.split(","))
+        .map(skill => String(skill).trim().toLowerCase())
+        .filter(Boolean);
 
     const requiredSkills = skills.map(s => String(s).trim());
     const matched = [];
@@ -1611,7 +1643,7 @@ function getSmartInsightsHTML(internship, skills) {
                 ${matched.length ? `<div><strong>Matching Skills (${matched.length}):</strong> ${matched.map(m => `<span class="skill-chip-matched">✅ ${escapeHTML(m)}</span>`).join("")}</div>` : ""}
                 ${missing.length ? `<div style="margin-top:6px;"><strong>Recommended to Learn (${missing.length}):</strong> ${missing.slice(0, 3).map(m => `<span class="skill-chip-gap">💡 ${escapeHTML(m)}</span>`).join("")} <span style="font-size:12px;color:#64748b;">(Upskilling improves shortlisting!)</span></div>` : ""}
             </div>
-            <button type="button" class="company-review-trigger-btn" onclick="openCompanyReviews('${escapeHTML(internship.company || "")}')">
+            <button type="button" class="company-review-trigger-btn" data-review-company="${escapeHTML(internship.company || "")}">
                 ⭐ View Company Reviews & Ratings ↗
             </button>
         </div>
@@ -1626,6 +1658,10 @@ function closeModal() {
 
 document.getElementById("detailsModal").addEventListener("click", event => {
     if (event.target === event.currentTarget) closeModal();
+    const applicationLink = event.target.closest("a[data-track-internship]");
+    if (applicationLink) autoTrackApplication(applicationLink.dataset.trackInternship);
+    const reviewButton = event.target.closest("button[data-review-company]");
+    if (reviewButton) openCompanyReviews(reviewButton.dataset.reviewCompany);
 });
 
 document.addEventListener("keydown", event => {
@@ -1897,7 +1933,7 @@ function displayAdminInternships() {
                 </thead>
                 <tbody>
                     ${paginated.map(internship => {
-                        const safeId = Number(internship.id);
+                        const safeId = escapeInlineString(internship.id);
                         return `
                             <tr>
                                 <td>
@@ -2177,14 +2213,14 @@ function updateTrackerMetrics() {
     const viewedCount = viewedInternships.length;
     const appliedList = trackedApplications.filter(a => a.status === "Applied");
     const appliedCount = appliedList.length;
-    const savedCount = bookmarks.length;
+    const savedCount = bookmarks.length + trackedApplications.filter(a => a.status === "Saved").length;
 
     const closingSoonList = internships.filter(i => {
         const days = getDaysRemaining(i.closingDate);
         return days !== null && days >= 0 && days <= 14;
     });
     const closingSoonCount = closingSoonList.length;
-    const totalActivity = viewedCount + appliedCount + savedCount;
+    const totalActivity = viewedCount + trackedApplications.length + bookmarks.length;
 
     const badge = document.getElementById("trackerBadge");
     if (badge) badge.innerText = String(totalActivity);
@@ -2226,6 +2262,10 @@ function trackApplicationVisit(internship) {
         });
         saveApplications();
     }
+}
+
+function autoTrackApplication(internshipId) {
+    trackApplicationVisit(findInternshipById(internshipId));
 }
 
 function markInternshipAsApplied(internshipId) {
@@ -2287,10 +2327,16 @@ function submitCustomTracker(e) {
     const title = document.getElementById("trackTitle").value.trim();
     const status = document.getElementById("trackStatus").value || "Applied";
     const date = document.getElementById("trackDate").value || getLocalDateString();
-    const link = document.getElementById("trackLink").value.trim();
+    const rawLink = document.getElementById("trackLink").value.trim();
+    const link = rawLink ? getSafeApplicationUrl(rawLink) : "";
     const notes = document.getElementById("trackNotes").value.trim();
 
     if (!company || !title) return;
+    if (rawLink && !link) {
+        alert("Enter a valid HTTPS application link.");
+        document.getElementById("trackLink").focus();
+        return;
+    }
 
     trackedApplications.unshift({
         id: Date.now(),
@@ -2311,6 +2357,9 @@ function submitCustomTracker(e) {
 function filterTrackerStatus(status, tabElement) {
     activeTrackerFilter = status;
     document.querySelectorAll(".tracker-tab").forEach(tab => tab.classList.remove("active"));
+    document.querySelectorAll(".tracker-status-tabs [data-status], .tracker-summary-grid [data-status]").forEach(control => {
+        control.setAttribute("aria-pressed", String(control.dataset.status === status));
+    });
     if (tabElement) {
         tabElement.classList.add("active");
     } else {
@@ -2348,7 +2397,7 @@ function renderTrackerPage() {
     if (activeTrackerFilter === "viewed") {
         if (!viewedInternships.length) {
             container.innerHTML = `
-                <div class="empty-state" style="padding:32px;text-align:center;background:#fff;border-radius:14px;border:1px dashed #cbd5e1;">
+                <div class="tracker-empty-state">
                     <span style="font-size:32px;display:block;margin-bottom:8px;">👁️</span>
                     <strong>No viewed internships yet</strong>
                     <p class="company mt-4">When you browse and view internship details, they will automatically appear here in real-time!</p>
@@ -2361,14 +2410,14 @@ function renderTrackerPage() {
         container.innerHTML = viewedInternships.map(item => {
             const isBookmarked = bookmarks.some(b => String(b) === String(item.id));
             const isApplied = trackedApplications.some(a => String(a.internshipId) === String(item.id) && a.status === "Applied");
-            const safeId = JSON.stringify(String(item.id));
+            const safeId = escapeInlineString(item.id);
             const relativeTime = formatRelativeTime(item.viewedAt);
             return `
                 <div class="tracker-card">
                     <div class="tracker-card-left">
                         <div class="tracker-card-title">${escapeHTML(item.title)}</div>
                         <div class="tracker-card-company">🏢 ${escapeHTML(item.company)} • 📍 ${escapeHTML(item.location || "Remote")} • 💰 ${escapeHTML(item.stipend || "Not specified")}</div>
-                        <div style="font-size:12px;color:#64748b;display:flex;align-items:center;gap:6px;margin-top:4px;">
+                        <div class="tracker-view-meta">
                             <span>👁️ Viewed ${escapeHTML(relativeTime)}</span>
                             <span>•</span>
                             <span class="tag" style="padding:2px 8px;font-size:11px;">${escapeHTML(item.type || "Online")}</span>
@@ -2376,7 +2425,7 @@ function renderTrackerPage() {
                         </div>
                     </div>
                     <div class="tracker-card-right">
-                        ${!isApplied ? `<button class="secondary-btn" onclick="markInternshipAsApplied(${safeId})" style="padding:7px 12px;font-size:12px;color:#0f766e;border-color:#0d9488;">✅ Mark Applied</button>` : ""}
+                        ${!isApplied ? `                        <button class="secondary-btn tracker-action-button" onclick="markInternshipAsApplied(${safeId})">✅ Mark Applied</button>` : ""}
                         <button class="primary-btn" onclick="apply(${safeId})" style="padding:7px 16px;font-size:13px;">Apply Now ↗</button>
                         <button class="secondary-btn" onclick="bookmark(${safeId});renderTrackerPage();" style="padding:7px 12px;font-size:13px;">
                             ${isBookmarked ? "⭐ Saved" : "☆ Save"}
@@ -2395,7 +2444,7 @@ function renderTrackerPage() {
         const appliedList = trackedApplications.filter(a => ["Applied", "In Progress", "Interviewing", "Offer", "Rejected"].includes(a.status));
         if (!appliedList.length) {
             container.innerHTML = `
-                <div class="empty-state" style="padding:32px;text-align:center;background:#fff;border-radius:14px;border:1px dashed #cbd5e1;">
+                <div class="tracker-empty-state">
                     <span style="font-size:32px;display:block;margin-bottom:8px;">🚀</span>
                     <strong>No tracked applications yet</strong>
                     <p class="company mt-4">When you visit or submit an application, you can track and manage its status here!</p>
@@ -2405,7 +2454,7 @@ function renderTrackerPage() {
         }
 
         container.innerHTML = appliedList.map(app => {
-            const safeAppId = JSON.stringify(String(app.id));
+            const safeAppId = escapeInlineString(app.id);
             return `
                 <div class="tracker-card">
                     <div class="tracker-card-left">
@@ -2414,7 +2463,7 @@ function renderTrackerPage() {
                         ${app.notes ? `<div class="tracker-card-notes">📝 ${escapeHTML(app.notes)}</div>` : ""}
                     </div>
                     <div class="tracker-card-right" style="gap:8px;">
-                        <select class="admin-select" style="padding:6px 10px;font-size:12px;border-radius:8px;border:1px solid #cbd5e1;background:#fff;cursor:pointer;" onchange="updateApplicationStage(${safeAppId}, this.value)">
+                        <select class="tracker-stage-select" aria-label="Application status for ${escapeHTML(app.title)}" onchange="updateApplicationStage(${safeAppId}, this.value)">
                             <option value="Applied" ${app.status === "Applied" ? "selected" : ""}>🚀 Applied</option>
                             <option value="In Progress" ${app.status === "In Progress" ? "selected" : ""}>⏳ In Progress</option>
                             <option value="Interviewing" ${app.status === "Interviewing" ? "selected" : ""}>🗣️ Interviewing</option>
@@ -2433,9 +2482,10 @@ function renderTrackerPage() {
     // 3. SAVED TAB
     if (activeTrackerFilter === "Saved") {
         const savedInternships = bookmarks.map(findInternshipById).filter(Boolean);
-        if (!savedInternships.length) {
+        const savedApplications = trackedApplications.filter(application => application.status === "Saved");
+        if (!savedInternships.length && !savedApplications.length) {
             container.innerHTML = `
-                <div class="empty-state" style="padding:32px;text-align:center;background:#fff;border-radius:14px;border:1px dashed #cbd5e1;">
+                <div class="tracker-empty-state">
                     <span style="font-size:32px;display:block;margin-bottom:8px;">⭐</span>
                     <strong>No saved internships</strong>
                     <p class="company mt-4">Save roles you want to apply for later by clicking the star icon on any card.</p>
@@ -2444,8 +2494,32 @@ function renderTrackerPage() {
             return;
         }
 
-        container.innerHTML = savedInternships.map(item => {
-            const safeId = JSON.stringify(String(item.id));
+        const savedApplicationCards = savedApplications.map(app => {
+            const safeAppId = escapeInlineString(app.id);
+            return `
+                <div class="tracker-card">
+                    <div class="tracker-card-left">
+                        <div class="tracker-card-title">${escapeHTML(app.title)}</div>
+                        <div class="tracker-card-company">🏢 ${escapeHTML(app.company)} • 🗓 Saved: ${escapeHTML(app.date || "Recently")}</div>
+                        ${app.notes ? `<div class="tracker-card-notes">📝 ${escapeHTML(app.notes)}</div>` : ""}
+                    </div>
+                    <div class="tracker-card-right">
+                        <select class="tracker-stage-select" aria-label="Application status for ${escapeHTML(app.title)}" onchange="updateApplicationStage(${safeAppId}, this.value)">
+                            <option value="Saved" selected>📌 Saved for Later</option>
+                            <option value="Applied">🚀 Applied</option>
+                            <option value="In Progress">⏳ In Progress</option>
+                            <option value="Interviewing">🗣️ Interviewing</option>
+                            <option value="Offer">🎉 Offer Received</option>
+                            <option value="Rejected">❌ Rejected</option>
+                        </select>
+                        ${app.link && getSafeApplicationUrl(app.link) ? `<a class="secondary-btn" href="${escapeHTML(getSafeApplicationUrl(app.link))}" target="_blank" rel="noopener noreferrer" style="padding:7px 14px;font-size:13px;text-decoration:none;">Portal ↗</a>` : ""}
+                        <button class="danger-btn" onclick="deleteTrackedApplication(${safeAppId})" style="padding:7px 12px;font-size:12px;">Delete</button>
+                    </div>
+                </div>
+            `;
+        });
+        container.innerHTML = [...savedApplicationCards, ...savedInternships.map(item => {
+            const safeId = escapeInlineString(item.id);
             return `
                 <div class="tracker-card">
                     <div class="tracker-card-left">
@@ -2459,7 +2533,7 @@ function renderTrackerPage() {
                     </div>
                 </div>
             `;
-        }).join("");
+        })].join("");
         return;
     }
 
@@ -2472,7 +2546,7 @@ function renderTrackerPage() {
 
         if (!closingSoonList.length) {
             container.innerHTML = `
-                <div class="empty-state" style="padding:32px;text-align:center;background:#fff;border-radius:14px;border:1px dashed #cbd5e1;">
+                <div class="tracker-empty-state">
                     <span style="font-size:32px;display:block;margin-bottom:8px;">⏳</span>
                     <strong>No urgent deadlines in the next 14 days</strong>
                     <p class="company mt-4">All opportunities have ample application windows remaining.</p>
@@ -2483,13 +2557,13 @@ function renderTrackerPage() {
 
         container.innerHTML = closingSoonList.map(item => {
             const days = getDaysRemaining(item.closingDate);
-            const safeId = JSON.stringify(String(item.id));
+            const safeId = escapeInlineString(item.id);
             return `
                 <div class="tracker-card" style="border-left:4px solid #ea580c;">
                     <div class="tracker-card-left">
                         <div class="tracker-card-title">${escapeHTML(item.title)}</div>
                         <div class="tracker-card-company">🏢 ${escapeHTML(item.company)} • 📍 ${escapeHTML(item.location || "Remote")}</div>
-                        <div style="font-size:12px;color:#c2410c;font-weight:700;margin-top:4px;">
+                        <div class="tracker-closing-meta">
                             ⏰ Closes in ${days === 0 ? "Today!" : `${days} day${days > 1 ? "s" : ""}`} (${escapeHTML(item.closingDate)})
                         </div>
                     </div>
@@ -2507,7 +2581,7 @@ function renderTrackerPage() {
     const totalCount = viewedInternships.length + trackedApplications.length + bookmarks.length;
     if (!totalCount) {
         container.innerHTML = `
-            <div class="empty-state" style="padding:32px;text-align:center;background:#fff;border-radius:14px;border:1px dashed #cbd5e1;">
+            <div class="tracker-empty-state">
                 <strong>No student activity logged yet</strong>
                 <p class="company mt-4">Start exploring internships to build your personal activity history!</p>
             </div>
@@ -2517,7 +2591,7 @@ function renderTrackerPage() {
 
     let combinedHTML = "";
     if (viewedInternships.length) {
-        combinedHTML += `<h4 style="margin:8px 0;color:#0f766e;">👁️ Recently Viewed (${viewedInternships.length})</h4>`;
+        combinedHTML += `<h4 class="tracker-activity-heading">👁️ Recently Viewed (${viewedInternships.length})</h4>`;
         combinedHTML += viewedInternships.slice(0, 5).map(item => `
             <div class="tracker-card" style="margin-bottom:10px;">
                 <div class="tracker-card-left">
@@ -2525,30 +2599,42 @@ function renderTrackerPage() {
                     <div class="tracker-card-company">🏢 ${escapeHTML(item.company)} • 👁️ ${formatRelativeTime(item.viewedAt)}</div>
                 </div>
                 <div class="tracker-card-right">
-                    <button class="primary-btn" onclick="apply(${JSON.stringify(String(item.id))})" style="padding:6px 14px;font-size:12px;">Apply Now ↗</button>
-                    <button class="secondary-btn" onclick="showDetails(${JSON.stringify(String(item.id))})" style="padding:6px 10px;font-size:12px;">Details</button>
+                    <button class="primary-btn" onclick="apply(${escapeInlineString(item.id)})" style="padding:6px 14px;font-size:12px;">Apply Now ↗</button>
+                    <button class="secondary-btn" onclick="showDetails(${escapeInlineString(item.id)})" style="padding:6px 10px;font-size:12px;">Details</button>
                 </div>
             </div>
         `).join("");
     }
 
     if (trackedApplications.length) {
-        combinedHTML += `<h4 style="margin:16px 0 8px;color:#1e40af;">🚀 Submitted Applications (${trackedApplications.length})</h4>`;
+        combinedHTML += `<h4 class="tracker-activity-heading">🚀 Tracked Applications (${trackedApplications.length})</h4>`;
         combinedHTML += trackedApplications.slice(0, 5).map(app => `
             <div class="tracker-card" style="margin-bottom:10px;">
                 <div class="tracker-card-left">
                     <div class="tracker-card-title">${escapeHTML(app.title)}</div>
                     <div class="tracker-card-company">🏢 ${escapeHTML(app.company)} • 🗓 ${escapeHTML(app.date || "")}</div>
+                    ${app.notes ? `<div class="tracker-card-notes">📝 ${escapeHTML(app.notes)}</div>` : ""}
                 </div>
                 <div class="tracker-card-right">
-                    <span class="status-badge status-applied">✓ Applied</span>
-                    ${app.link ? `<a class="secondary-btn" href="${escapeHTML(app.link)}" target="_blank" rel="noopener noreferrer" style="padding:6px 12px;font-size:12px;text-decoration:none;">Portal ↗</a>` : ""}
+                    <span class="status-badge ${getTrackerStatusClass(app.status)}">${escapeHTML(app.status || "In Progress")}</span>
+                    ${app.link && getSafeApplicationUrl(app.link) ? `<a class="secondary-btn" href="${escapeHTML(getSafeApplicationUrl(app.link))}" target="_blank" rel="noopener noreferrer" style="padding:6px 12px;font-size:12px;text-decoration:none;">Portal ↗</a>` : ""}
                 </div>
             </div>
         `).join("");
     }
 
     container.innerHTML = combinedHTML;
+}
+
+function getTrackerStatusClass(status) {
+    return {
+        Applied: "status-applied",
+        Interviewing: "status-interviewing",
+        Offer: "status-offer",
+        Rejected: "status-rejected",
+        Saved: "status-saved",
+        "In Progress": "status-saved"
+    }[status] || "status-saved";
 }
 
 /* =========================================================
@@ -2627,7 +2713,7 @@ function renderInsightsDashboard() {
     const skillsCloud = document.getElementById("topSkillsCloud");
     if (skillsCloud) {
         skillsCloud.innerHTML = sortedSkills.map(([skill, count]) => {
-            const safeSkill = JSON.stringify(String(skill));
+            const safeSkill = escapeInlineString(skill);
             return `
                 <button type="button" class="skill-pill" onclick='selectSkillSearch(${safeSkill})' title="Filter internships requiring ${escapeHTML(skill)}">
                     ${escapeHTML(skill)}
@@ -3055,6 +3141,16 @@ function extractKeywordsFromText(text) {
     return Array.from(found);
 }
 
+async function copyAtsKeyword(keyword) {
+    try {
+        await navigator.clipboard.writeText(keyword);
+        alert(`Copied keyword: ${keyword}`);
+    } catch (error) {
+        console.error("Could not copy ATS keyword.", error);
+        alert("Could not copy automatically. Select and copy the keyword manually.");
+    }
+}
+
 function runAtsAnalysis() {
     const resumeText = document.getElementById("atsResumeText")?.value.trim() || "";
     const jdText = document.getElementById("atsJdText")?.value.trim() || "";
@@ -3192,7 +3288,7 @@ function runAtsAnalysis() {
 
     if (missingContainer) {
         missingContainer.innerHTML = missingKeywords.length
-            ? missingKeywords.map(k => `<span class="ats-skill-badge ats-skill-missing" title="Click to copy" onclick="navigator.clipboard.writeText('${escapeHTML(k)}'); alert('Copied keyword: ${escapeHTML(k)}');">+ ${escapeHTML(k)}</span>`).join("")
+            ? missingKeywords.map(k => `<button type="button" class="ats-skill-badge ats-skill-missing" title="Copy keyword" onclick="copyAtsKeyword(${escapeInlineString(k)})">+ ${escapeHTML(k)}</button>`).join("")
             : `<span style="font-size:12px; color:#166534;">🎉 Congratulations! You have covered all detected job keywords.</span>`;
     }
 
@@ -3825,6 +3921,7 @@ Object.assign(window, {
     beginProfileEdit,
     cancelProfileEdit,
     clearAtsForm,
+    copyAtsKeyword,
     closeApplyConfirmModal,
     closeEmailPreviewModal,
     confirmApplicationSubmitted,
@@ -3883,6 +3980,9 @@ Object.assign(window, {
     togglePassword
 });
 
+mountProfileTools();
+window.addEventListener("hashchange", showProfileToolFromHash);
+showProfileToolFromHash();
 displayFeatured();
 displayInternships();
 displayAdminInternships();

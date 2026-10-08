@@ -99,8 +99,6 @@
         <button class="nav-btn" onclick="showPage('favorites')">Saved <span id="savedCount">0</span></button>
         <button class="nav-btn" onclick="showPage('tracker')">Tracker</button>
         <button class="nav-btn" onclick="showPage('insights')">Insights</button>
-        <button class="nav-btn" onclick="showPage('ats')">📄 ATS Resume</button>
-        <button class="nav-btn" onclick="showPage('coverletter')">✍️ Cover Letter</button>
         <button class="nav-btn" onclick="showPage('profile')">My Profile</button>
         <button class="nav-btn logout-nav-btn" onclick="studentLogout()">Logout</button>
     </div>
@@ -292,6 +290,17 @@
 
         <button class="secondary-btn profile-logout" onclick="studentLogout()">Logout</button>
     </div>
+
+    <div class="profile-tools" aria-label="Career tools">
+        <details class="profile-tool-accordion" id="ats">
+            <summary>📄 ATS Resume Checker <span>Check your resume against an internship description</span></summary>
+            <div class="profile-tool-content" id="atsToolContent"></div>
+        </details>
+        <details class="profile-tool-accordion" id="coverletter">
+            <summary>✍️ Cover Letter Generator <span>Create a tailored letter for your target role</span></summary>
+            <div class="profile-tool-content" id="coverletterToolContent"></div>
+        </details>
+    </div>
 </section>
 
 <!-- ================= SAVED INTERNSHIPS ================= -->
@@ -397,30 +406,30 @@
         </div>
 
         <div class="tracker-summary-grid">
-            <div class="tracker-metric-card" onclick="filterTrackerStatus('viewed', document.querySelector('[data-status=viewed]'))" title="Click to view all viewed internships">
+            <button class="tracker-metric-card" type="button" data-status="viewed" aria-pressed="true" onclick="filterTrackerStatus('viewed', document.querySelector('[data-status=viewed]'))" title="Click to view all viewed internships">
                 <span class="tracker-metric-num" id="trackerTotalViewedCount">0</span>
                 <span class="tracker-metric-label">Internships Viewed 👁️</span>
-            </div>
-            <div class="tracker-metric-card" onclick="filterTrackerStatus('Applied', document.querySelector('[data-status=Applied]'))" title="Click to view all applied internships">
+            </button>
+            <button class="tracker-metric-card" type="button" data-status="Applied" aria-pressed="false" onclick="filterTrackerStatus('Applied', document.querySelector('[data-status=Applied]'))" title="Click to view all applied internships">
                 <span class="tracker-metric-num" id="trackerAppliedCount">0</span>
                 <span class="tracker-metric-label">Applied 🚀</span>
-            </div>
-            <div class="tracker-metric-card" onclick="filterTrackerStatus('Saved', document.querySelector('[data-status=Saved]'))" title="Click to view all saved internships">
+            </button>
+            <button class="tracker-metric-card" type="button" data-status="Saved" aria-pressed="false" onclick="filterTrackerStatus('Saved', document.querySelector('[data-status=Saved]'))" title="Click to view all saved internships">
                 <span class="tracker-metric-num" id="trackerSavedCount">0</span>
                 <span class="tracker-metric-label">Saved to Apply ⭐</span>
-            </div>
-            <div class="tracker-metric-card highlight-deadline" onclick="filterTrackerStatus('ClosingSoon', document.querySelector('[data-status=ClosingSoon]'))" title="Click to view upcoming deadlines">
+            </button>
+            <button class="tracker-metric-card highlight-deadline" type="button" data-status="ClosingSoon" aria-pressed="false" onclick="filterTrackerStatus('ClosingSoon', document.querySelector('[data-status=ClosingSoon]'))" title="Click to view upcoming deadlines">
                 <span class="tracker-metric-num" id="trackerClosingSoonCount">0</span>
                 <span class="tracker-metric-label">Closing Soon ⏳</span>
-            </div>
+            </button>
         </div>
 
         <div class="tracker-status-tabs" role="tablist">
-            <button class="tracker-tab active" data-status="viewed" onclick="filterTrackerStatus('viewed', this)">👁️ Viewed (<span id="tabCountViewed">0</span>)</button>
-            <button class="tracker-tab" data-status="Applied" onclick="filterTrackerStatus('Applied', this)">🚀 Applied (<span id="tabCountApplied">0</span>)</button>
-            <button class="tracker-tab" data-status="Saved" onclick="filterTrackerStatus('Saved', this)">⭐ Saved (<span id="tabCountSaved">0</span>)</button>
-            <button class="tracker-tab" data-status="ClosingSoon" onclick="filterTrackerStatus('ClosingSoon', this)">⏳ Closing Soon (<span id="tabCountClosingSoon">0</span>)</button>
-            <button class="tracker-tab" data-status="all" onclick="filterTrackerStatus('all', this)">All Activity (<span id="tabCountAll">0</span>)</button>
+            <button class="tracker-tab active" type="button" aria-pressed="true" data-status="viewed" onclick="filterTrackerStatus('viewed', this)">👁️ Viewed (<span id="tabCountViewed">0</span>)</button>
+            <button class="tracker-tab" type="button" aria-pressed="false" data-status="Applied" onclick="filterTrackerStatus('Applied', this)">🚀 Applied (<span id="tabCountApplied">0</span>)</button>
+            <button class="tracker-tab" type="button" aria-pressed="false" data-status="Saved" onclick="filterTrackerStatus('Saved', this)">⭐ Saved (<span id="tabCountSaved">0</span>)</button>
+            <button class="tracker-tab" type="button" aria-pressed="false" data-status="ClosingSoon" onclick="filterTrackerStatus('ClosingSoon', this)">⏳ Closing Soon (<span id="tabCountClosingSoon">0</span>)</button>
+            <button class="tracker-tab" type="button" aria-pressed="false" data-status="all" onclick="filterTrackerStatus('all', this)">All Activity (<span id="tabCountAll">0</span>)</button>
         </div>
 
         <div class="tracker-list" id="trackerListContainer">
@@ -562,7 +571,7 @@
 </section>
 
 <!-- ================= ATS RESUME CHECKER ================= -->
-<section id="ats" class="page">
+<section id="atsTool" class="profile-tool-source" hidden>
     <div class="section">
         <div class="section-title">
             <div>
@@ -720,7 +729,7 @@
 </section>
 
 <!-- ================= AI COVER LETTER GENERATOR ================= -->
-<section id="coverletter" class="page">
+<section id="coverletterTool" class="profile-tool-source" hidden>
     <div class="section">
         <div class="section-title">
             <div>
