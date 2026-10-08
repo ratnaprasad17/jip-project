@@ -69,16 +69,17 @@
         </form>
 
         <form id="studentRegistrationForm" hidden onsubmit="event.preventDefault(); registerStudent();">
-            <label>Full Name<input id="registerName" required></label>
-            <label>Email<input id="registerEmail" type="email" required></label>
-            <label>Phone Number<input id="registerPhone" required></label>
-            <label>College / Branch<input id="registerBranch" required></label>
-            <label>Roll Number<input id="registerRoll" required></label>
+            <label>Full Name<input id="registerName" placeholder="Your full name" required></label>
+            <label>College Email<input id="registerEmail" type="email" placeholder="e.g. name@srivasaviengg.ac.in" required></label>
+            <label>Phone Number<input id="registerPhone" type="tel" placeholder="10-digit mobile number" maxlength="15" required></label>
+            <label>College / Branch<input id="registerBranch" placeholder="e.g. Sri Vasavi / CSE" required></label>
+            <label>Roll Number<input id="registerRoll" placeholder="e.g. 21A81A0501" style="text-transform:uppercase" required></label>
             <label class="password-field">Password
-                <input id="registerPassword" type="password" minlength="6" required>
+                <input id="registerPassword" type="password" minlength="6" placeholder="At least 6 characters" required>
                 <button class="password-toggle" type="button" aria-label="Show password" title="Show password"
                         onclick="togglePassword('registerPassword', this)">&#128065;</button>
             </label>
+            <div style="font-size:11px;color:#64748b;margin-top:6px;line-height:1.4;">🔒 Email, Phone Number, and Roll Number are verified for unique single-account registration.</div>
             <button class="primary-btn full-width" type="submit">Submit Registration</button>
             <p class="auth-message" id="registrationMessage"></p>
             <button class="auth-link" type="button" onclick="showStudentLogin()">Back to student login</button>
@@ -96,8 +97,10 @@
         <button class="nav-btn" onclick="showPage('home')">Home</button>
         <button class="nav-btn" onclick="showPage('preferences')">Find Internship</button>
         <button class="nav-btn" onclick="showPage('favorites')">Saved <span id="savedCount">0</span></button>
-        <button class="nav-btn" onclick="showPage('tracker')">Tracker <span id="trackerBadge" class="nav-counter">0</span></button>
+        <button class="nav-btn" onclick="showPage('tracker')">Tracker</button>
         <button class="nav-btn" onclick="showPage('insights')">Insights</button>
+        <button class="nav-btn" onclick="showPage('ats')">📄 ATS Resume</button>
+        <button class="nav-btn" onclick="showPage('coverletter')">✍️ Cover Letter</button>
         <button class="nav-btn" onclick="showPage('profile')">My Profile</button>
         <button class="nav-btn logout-nav-btn" onclick="studentLogout()">Logout</button>
     </div>
@@ -210,18 +213,83 @@
         <p class="profile-message" id="profileMessage" role="status" aria-live="polite"></p>
         <form class="profile-edit-form" id="profileEditForm" hidden onsubmit="event.preventDefault(); saveStudentProfile(event);">
             <div class="profile-edit-grid">
-                <div class="profile-edit-field"><label for="profileNameInput">Full name</label><input id="profileNameInput" required maxlength="100"></div>
-                <div class="profile-edit-field"><label for="profilePhoneInput">Phone number</label><input id="profilePhoneInput" maxlength="30"></div>
-                <div class="profile-edit-field"><label for="profileBranchInput">College / branch</label><input id="profileBranchInput" maxlength="120"></div>
-                <div class="profile-edit-field"><label for="profileRollNumberInput">Roll number</label><input id="profileRollNumberInput" maxlength="60"></div>
-                <div class="profile-edit-field"><label for="profileSkillsInput">Skills</label><input id="profileSkillsInput" placeholder="Comma-separated skills" maxlength="300"></div>
-                <div class="profile-edit-field"><label for="profileLocationInput">Preferred location</label><input id="profileLocationInput" placeholder="City or Remote" maxlength="100"></div>
+                <div class="profile-edit-field"><label for="profileNameInput">Full name *</label><input id="profileNameInput" required maxlength="100"></div>
+                <div class="profile-edit-field"><label for="profilePhoneInput">Phone number *</label><input id="profilePhoneInput" type="tel" maxlength="30" required></div>
+                <div class="profile-edit-field"><label for="profileRollNumberInput">Roll number *</label><input id="profileRollNumberInput" style="text-transform:uppercase" maxlength="60" required></div>
+                <div class="profile-edit-field"><label for="profileCollegeInput">College / Institution</label><input id="profileCollegeInput" placeholder="e.g. Sri Vasavi Engineering College" maxlength="150"></div>
+                <div class="profile-edit-field"><label for="profileDegreeInput">Degree / Course</label><input id="profileDegreeInput" placeholder="e.g. B.Tech, MCA, M.Tech" maxlength="60"></div>
+                <div class="profile-edit-field"><label for="profileBranchInput">Branch / Department</label><input id="profileBranchInput" placeholder="e.g. Computer Science & Engineering" maxlength="120"></div>
+                <div class="profile-edit-field"><label for="profileGradYearInput">Graduation Year</label><input id="profileGradYearInput" placeholder="e.g. 2026 or 2027" maxlength="30"></div>
+                <div class="profile-edit-field"><label for="profileCgpaInput">CGPA / Percentage</label><input id="profileCgpaInput" placeholder="e.g. 8.4 / 10" maxlength="30"></div>
+                <div class="profile-edit-field"><label for="profileSkillsInput">Skills (Comma-separated)</label><input id="profileSkillsInput" placeholder="e.g. Python, React, SQL, Java, DSA" maxlength="300"></div>
+                <div class="profile-edit-field"><label for="profileLocationInput">Preferred location</label><input id="profileLocationInput" placeholder="e.g. Hyderabad, Bengaluru, Remote" maxlength="100"></div>
+                <div class="profile-edit-field">
+                    <label for="profileWorkModeInput">Preferred Work Mode</label>
+                    <select id="profileWorkModeInput">
+                        <option value="Any">Flexible / Any Mode</option>
+                        <option value="Online">🌐 Online / Remote</option>
+                        <option value="Offline">🏢 Offline / Onsite</option>
+                        <option value="Hybrid">🔄 Hybrid</option>
+                    </select>
+                </div>
+                <div class="profile-edit-field"><label for="profileLinkedinInput">LinkedIn Profile URL</label><input id="profileLinkedinInput" type="url" placeholder="https://linkedin.com/in/username" maxlength="200"></div>
+                <div class="profile-edit-field"><label for="profileGithubInput">GitHub Profile URL</label><input id="profileGithubInput" type="url" placeholder="https://github.com/username" maxlength="200"></div>
+                <div class="profile-edit-field"><label for="profilePortfolioInput">Portfolio / Resume Link</label><input id="profilePortfolioInput" type="url" placeholder="https://yourportfolio.dev or Drive link" maxlength="200"></div>
+                <div class="profile-edit-field" style="grid-column: 1 / -1;"><label for="profileBioInput">About Me / Career Objective</label><textarea id="profileBioInput" rows="3" placeholder="Briefly introduce your career aspirations, key strengths, and what internship roles you are seeking..." maxlength="500"></textarea></div>
+                <div class="profile-edit-field" style="grid-column: 1 / -1; background:#f0fdfa; padding:14px; border-radius:10px; border:1px solid #99f6e4;">
+                    <label style="display:flex; align-items:center; gap:8px; cursor:pointer; margin-bottom:10px; color:#0f766e;">
+                        <input id="profileEmailAlertsInput" type="checkbox" style="width:auto; min-height:auto;">
+                        <span><strong>Enable Internship Email Alerts</strong> (Sent directly to your email address)</span>
+                    </label>
+                    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:10px; margin-top:8px;">
+                        <div>
+                            <label for="profileEmailFreqInput" style="font-size:12px; font-weight:600; margin-bottom:4px;">Alert Frequency</label>
+                            <select id="profileEmailFreqInput">
+                                <option value="instant">⚡ Instant (When new batch is synced)</option>
+                                <option value="daily" selected>📅 Daily Digest (Recommended)</option>
+                                <option value="weekly">📆 Weekly Summary</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="profileEmailFilterInput" style="font-size:12px; font-weight:600; margin-bottom:4px;">Filter Criteria</label>
+                            <select id="profileEmailFilterInput">
+                                <option value="branch" selected>🎯 Matching My Branch Only</option>
+                                <option value="all">🌐 All Verified Openings</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
             </div>
             <div class="profile-edit-actions">
                 <button class="secondary-btn" type="button" onclick="cancelProfileEdit()">Cancel</button>
                 <button class="primary-btn" type="submit">Save profile</button>
             </div>
         </form>
+
+        <!-- Email Alerts Quick Card -->
+        <div class="profile-alerts-card" id="profileAlertsCard">
+            <div class="profile-alerts-header">
+                <div>
+                    <h3 style="margin:0 0 4px; font-size:16px; color:#0f766e; display:flex; align-items:center; gap:8px;">
+                        📧 Internship Email Alerts
+                        <span class="badge" id="profileAlertStatusBadge" style="background:#dcfce7; color:#15803d; font-size:11px; padding:3px 10px; margin:0;">Active</span>
+                    </h3>
+                    <p style="margin:0; font-size:13px; color:#64748b;" id="profileAlertStatusText">
+                        Receive customized digests of newly posted internships matching your branch.
+                    </p>
+                </div>
+            </div>
+            <div class="profile-alerts-actions" style="display:flex; gap:10px; margin-top:14px; flex-wrap:wrap;">
+                <button class="secondary-btn" type="button" onclick="previewStudentEmailAlert()" style="font-size:13px; padding:8px 14px;">
+                    👀 Preview My Email Alert
+                </button>
+                <button class="small-primary" type="button" onclick="sendTestEmailAlert()" id="sendTestEmailBtn" style="font-size:13px; padding:8px 14px;">
+                    📨 Test Email (SMTP Required)
+                </button>
+            </div>
+            <div id="emailAlertStatusMsg" style="font-size:12.5px; margin-top:10px; display:none;" role="status"></div>
+        </div>
+
         <button class="secondary-btn profile-logout" onclick="studentLogout()">Logout</button>
     </div>
 </section>
@@ -294,6 +362,13 @@
         <div class="form-group">
             <label for="location">Preferred Location</label>
             <input type="text" id="location" placeholder="Example: Hyderabad, Bangalore, Chennai">
+        </div>
+
+        <div class="form-group" style="background:#f0fdfa; padding:12px 14px; border-radius:10px; border:1px solid #99f6e4;">
+            <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-weight:normal; margin:0; font-size:13px; color:#0f766e;">
+                <input type="checkbox" id="prefEmailAlerts" checked style="width:auto; min-height:auto;">
+                <span><strong>Send Email Alerts:</strong> Automatically email me when newly verified internships match these criteria</span>
+            </label>
         </div>
 
         <button class="primary-btn full-width" onclick="findMatches()">🔍 Find My Internships</button>
@@ -486,6 +561,268 @@
     </div>
 </section>
 
+<!-- ================= ATS RESUME CHECKER ================= -->
+<section id="ats" class="page">
+    <div class="section">
+        <div class="section-title">
+            <div>
+                <div class="badge" style="margin-bottom: 8px;">🎯 AI & ATS Engine</div>
+                <h2>ATS Resume Score & Skill Matcher</h2>
+                <span>Analyze your resume against top internship job descriptions, uncover missing keywords, and get ATS approval tips.</span>
+            </div>
+            <button class="secondary-btn" type="button" onclick="clearAtsForm()">🔄 Reset Analysis</button>
+        </div>
+
+        <div class="ats-grid">
+            <!-- Left Card: Resume Input -->
+            <div class="ats-card">
+                <div class="ats-card-header">
+                    <h3>1. Your Resume</h3>
+                    <span class="ats-card-hint">Upload PDF or paste plain text</span>
+                </div>
+
+                <div class="ats-dropzone" id="atsDropzone" onclick="document.getElementById('atsFileInput').click()">
+                    <input type="file" id="atsFileInput" accept=".pdf,.txt" style="display:none;" onchange="handleResumeFileUpload(event)">
+                    <div class="ats-dropzone-icon">📄</div>
+                    <div class="ats-dropzone-text"><strong>Click to upload PDF / TXT</strong> or drag & drop</div>
+                    <div class="ats-dropzone-sub">Extracts text instantly on your device</div>
+                    <div id="atsFileName" class="ats-file-name" hidden></div>
+                </div>
+
+                <div style="margin-top: 14px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                        <label for="atsResumeText" style="font-size:13px; font-weight:700; color:var(--theme-ink, #334155);">Resume Content:</label>
+                        <button type="button" class="ats-link-btn" onclick="useProfileAsResume()">📋 Load from My Profile</button>
+                    </div>
+                    <textarea id="atsResumeText" class="ats-textarea" rows="8" placeholder="Paste your resume text here, or it will automatically populate once you upload a PDF..." oninput="updateAtsWordCounts()"></textarea>
+                    <div style="display:flex; justify-content:space-between; margin-top:4px;">
+                        <span class="ats-char-count" id="atsResumeCharCount">0 words</span>
+                        <span class="ats-char-count" id="atsResumeReadability"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Card: Target Internship / Job Description -->
+            <div class="ats-card">
+                <div class="ats-card-header">
+                    <h3>2. Target Role / Job Description</h3>
+                    <span class="ats-card-hint">Select a listing or paste custom JD</span>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 12px;">
+                    <label for="atsJobSelect" style="font-size:13px; font-weight:700; display:block; margin-bottom:4px;">Auto-fill from Live Internship:</label>
+                    <select id="atsJobSelect" onchange="onAtsJobSelect(this.value)" class="ats-select">
+                        <option value="">-- Choose from active internships --</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label for="atsJdText" style="font-size:13px; font-weight:700; color:var(--theme-ink, #334155); display:block; margin-bottom:6px;">Job Description & Required Skills:</label>
+                    <textarea id="atsJdText" class="ats-textarea" rows="8" placeholder="Paste the job description, required skills, or select an internship from the dropdown above..." oninput="updateAtsWordCounts()"></textarea>
+                    <div style="display:flex; justify-content:space-between; margin-top:4px;">
+                        <span class="ats-char-count" id="atsJdCharCount">0 words</span>
+                    </div>
+                </div>
+
+                <button class="primary-btn full-width" id="runAtsBtn" style="margin-top:16px;" onclick="runAtsAnalysis()">
+                    ⚡ Calculate ATS Match Score
+                </button>
+            </div>
+        </div>
+
+        <!-- ATS Results Dashboard (Hidden initially) -->
+        <div id="atsResultsSection" class="ats-results-wrapper" hidden>
+            <!-- Overall Score Banner -->
+            <div class="ats-score-banner">
+                <div class="ats-gauge-container">
+                    <svg class="ats-gauge-svg" viewBox="0 0 120 120">
+                        <circle class="ats-gauge-bg" cx="60" cy="60" r="50"></circle>
+                        <circle class="ats-gauge-bar" id="atsScoreCircle" cx="60" cy="60" r="50" style="stroke-dashoffset: 314;"></circle>
+                    </svg>
+                    <div class="ats-gauge-content">
+                        <span class="ats-gauge-num" id="atsScoreNumber">0%</span>
+                        <span class="ats-gauge-label">ATS Match</span>
+                    </div>
+                </div>
+
+                <div class="ats-score-details">
+                    <div class="ats-score-badge" id="atsRatingBadge">Needs Improvement</div>
+                    <h3 id="atsScoreTitle">Resume Match Overview</h3>
+                    <p id="atsScoreSummary" class="ats-score-desc">Detailed ATS screening assessment.</p>
+                </div>
+            </div>
+
+            <!-- 4 Pillar Metrics -->
+            <div class="ats-metrics-grid">
+                <div class="ats-metric-card">
+                    <div class="ats-metric-icon">🎯</div>
+                    <div class="ats-metric-info">
+                        <strong id="atsMetricKeywords">0%</strong>
+                        <span>Skill Keywords Match</span>
+                        <small id="atsMetricKeywordsSub">0 of 0 skills</small>
+                    </div>
+                </div>
+                <div class="ats-metric-card">
+                    <div class="ats-metric-icon">📑</div>
+                    <div class="ats-metric-info">
+                        <strong id="atsMetricSections">0%</strong>
+                        <span>Resume Sections</span>
+                        <small id="atsMetricSectionsSub">0 of 5 detected</small>
+                    </div>
+                </div>
+                <div class="ats-metric-card">
+                    <div class="ats-metric-icon">🚀</div>
+                    <div class="ats-metric-info">
+                        <strong id="atsMetricVerbs">0%</strong>
+                        <span>Strong Action Verbs</span>
+                        <small id="atsMetricVerbsSub">0 found</small>
+                    </div>
+                </div>
+                <div class="ats-metric-card">
+                    <div class="ats-metric-icon">📊</div>
+                    <div class="ats-metric-info">
+                        <strong id="atsMetricMetrics">0%</strong>
+                        <span>Quantified Metrics</span>
+                        <small id="atsMetricMetricsSub">0 results metrics</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Keywords Breakdown Grid -->
+            <div class="ats-breakdown-grid">
+                <div class="ats-breakdown-card">
+                    <div class="ats-breakdown-header">
+                        <h4>✅ Matched Skills & Keywords (<span id="atsMatchedCount">0</span>)</h4>
+                        <span class="ats-tag-hint">Found in both resume and JD</span>
+                    </div>
+                    <div class="ats-skills-cloud" id="atsMatchedSkills"></div>
+                </div>
+
+                <div class="ats-breakdown-card">
+                    <div class="ats-breakdown-header">
+                        <h4>⚠️ Missing Keywords (<span id="atsMissingCount">0</span>)</h4>
+                        <span class="ats-tag-hint">Add these to boost screening rate</span>
+                    </div>
+                    <div class="ats-skills-cloud" id="atsMissingSkills"></div>
+                </div>
+            </div>
+
+            <!-- Actionable Suggestions -->
+            <div class="ats-breakdown-card" style="margin-top:20px;">
+                <div class="ats-breakdown-header">
+                    <h4>💡 Actionable Recommendations to Beat the ATS</h4>
+                    <span class="ats-tag-hint">Personalized optimization checklist</span>
+                </div>
+                <ul class="ats-tips-list" id="atsTipsList"></ul>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ================= AI COVER LETTER GENERATOR ================= -->
+<section id="coverletter" class="page">
+    <div class="section">
+        <div class="section-title">
+            <div>
+                <div class="badge" style="margin-bottom: 8px;">✍️ AI Career Assistant</div>
+                <h2>AI Cover Letter Generator</h2>
+                <span>Create tailored, high-converting cover letters for any internship role in seconds.</span>
+            </div>
+            <button class="secondary-btn" type="button" onclick="clearCoverLetterForm()">🔄 Reset Form</button>
+        </div>
+
+        <div class="cl-grid">
+            <!-- Left: Input Form -->
+            <div class="cl-card">
+                <div class="cl-card-header">
+                    <h3>1. Target Internship & Details</h3>
+                    <span class="cl-card-hint">Customize your application pitch</span>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 12px;">
+                    <label for="clJobSelect" style="font-size:13px; font-weight:700; display:block; margin-bottom:4px;">Quick Select Active Internship:</label>
+                    <select id="clJobSelect" onchange="onCoverLetterJobSelect(this.value)" class="ats-select">
+                        <option value="">-- Choose from live internships --</option>
+                    </select>
+                </div>
+
+                <div class="cl-inputs-row">
+                    <div>
+                        <label for="clTargetRole" style="font-size:13px; font-weight:700;">Target Role / Position *</label>
+                        <input id="clTargetRole" class="cl-input" placeholder="e.g. SDE Intern, Data Analyst Intern" required>
+                    </div>
+                    <div>
+                        <label for="clTargetCompany" style="font-size:13px; font-weight:700;">Company Name *</label>
+                        <input id="clTargetCompany" class="cl-input" placeholder="e.g. Google, Microsoft, TechNova" required>
+                    </div>
+                </div>
+
+                <div class="cl-inputs-row" style="margin-top: 12px;">
+                    <div>
+                        <label for="clTone" style="font-size:13px; font-weight:700;">Writing Style / Tone</label>
+                        <select id="clTone" class="ats-select">
+                            <option value="confident">Confident & Enthusiastic (Recommended)</option>
+                            <option value="professional">Formal & Professional</option>
+                            <option value="concise">Concise & Direct (Under 200 words)</option>
+                            <option value="research">Academic & Research Focused</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="clExperienceLevel" style="font-size:13px; font-weight:700;">Applicant Level</label>
+                        <select id="clExperienceLevel" class="ats-select">
+                            <option value="fresher">Undergraduate / College Fresher</option>
+                            <option value="projects">Student with Personal Projects</option>
+                            <option value="previous">Has Prior Internship Experience</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div style="margin-top: 14px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                        <label for="clSkills" style="font-size:13px; font-weight:700;">Key Skills & Qualifications:</label>
+                        <button type="button" class="ats-link-btn" onclick="autoFillCoverLetterProfile()">📋 Load from My Profile</button>
+                    </div>
+                    <input id="clSkills" class="cl-input" placeholder="e.g. Python, React, SQL, Problem Solving, Data Structures">
+                </div>
+
+                <div style="margin-top: 14px;">
+                    <label for="clHighlights" style="font-size:13px; font-weight:700;">Notable Project / Achievements to Highlight (Optional):</label>
+                    <textarea id="clHighlights" class="ats-textarea" rows="3" placeholder="e.g. Built an e-commerce web application with 99% uptime, Won 2nd place in college hackathon, Strong fundamentals in OOP and algorithms..."></textarea>
+                </div>
+
+                <button class="primary-btn full-width" id="generateCoverLetterBtn" style="margin-top:16px;" onclick="generateCoverLetter()">
+                    ✨ Generate Tailored Cover Letter
+                </button>
+            </div>
+
+            <!-- Right: Preview & Output Paper -->
+            <div class="cl-card">
+                <div class="cl-card-header">
+                    <h3>2. Generated Cover Letter</h3>
+                    <div class="cl-header-actions" style="display:flex; gap:8px;">
+                        <button class="secondary-btn" style="padding:5px 12px; font-size:12px;" onclick="copyCoverLetter()" id="copyClBtn">📋 Copy</button>
+                        <button class="secondary-btn" style="padding:5px 12px; font-size:12px;" onclick="downloadCoverLetter()">💾 Download .txt</button>
+                    </div>
+                </div>
+
+                <div class="cl-paper-container" id="clPaperContainer">
+                    <div class="cl-paper-placeholder" id="clPlaceholder">
+                        <div style="font-size:36px; margin-bottom:10px;">📄</div>
+                        <strong>Your personalized cover letter will appear here</strong>
+                        <p class="company" style="margin-top:6px; font-size:13px;">Fill in the company & role details on the left, or select an internship to generate a ready-to-send cover letter!</p>
+                    </div>
+                    <div id="clLetterContent" class="cl-letter-content" contenteditable="true" hidden></div>
+                </div>
+
+                <div style="margin-top: 10px; display:flex; justify-content:space-between; align-items:center;">
+                    <span class="ats-char-count" id="clWordCount">0 words</span>
+                    <span style="font-size:12px; color:#0f766e; font-weight:600;">💡 Tip: You can edit the text directly above before copying!</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
 <!-- ================= ADMIN ================= -->
 <section id="admin" class="page">
     <div class="admin-login" id="adminLoginPanel">
@@ -533,6 +870,9 @@
             </button>
             <button class="admin-tab-btn" id="tabBtnStudents" type="button" onclick="switchAdminTab('students')">
                 👥 Student Approvals (<span id="adminTabPendingCount">0</span>)
+            </button>
+            <button class="admin-tab-btn" id="tabBtnAlerts" type="button" onclick="switchAdminTab('alerts')">
+                📧 Email Alerts Dispatcher
             </button>
         </div>
 
@@ -618,6 +958,73 @@
 
             <div id="approvedStudentList" class="admin-compact-grid"></div>
         </div>
+
+        <!-- PANE 4: EMAIL ALERTS DISPATCHER -->
+        <div id="adminPaneAlerts" class="admin-pane" hidden>
+            <div class="admin-pane-banner">
+                <h3 style="margin-bottom:4px;">📧 Student Internship Email Alerts Hub</h3>
+                <p class="company">Broadcast curated internship digests to all approved students matching their branch and skills.</p>
+            </div>
+
+            <!-- Metrics -->
+            <div class="tracker-summary-grid" style="margin-top:20px;">
+                <div class="tracker-metric-card">
+                    <span class="tracker-metric-num" id="adminAlertSubscribersCount">0</span>
+                    <span class="tracker-metric-label">Subscribed Students</span>
+                </div>
+                <div class="tracker-metric-card">
+                    <span class="tracker-metric-num" id="adminAlertActiveListingsCount">0</span>
+                    <span class="tracker-metric-label">Active Opportunities</span>
+                </div>
+                <div class="tracker-metric-card">
+                    <span class="tracker-metric-num" id="adminAlertLastSentCount">0</span>
+                    <span class="tracker-metric-label">Last Dispatched</span>
+                </div>
+            </div>
+
+            <!-- Actions Bar -->
+            <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:14px; padding:20px; margin-top:20px; display:flex; flex-direction:column; gap:14px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+                    <div>
+                        <strong style="display:block; font-size:15px; color:#0f172a;">Manual Alert Broadcast</strong>
+                        <span style="font-size:13px; color:#64748b;">Automated digests are sent after a successful internship sync when SMTP is configured.</span>
+                    </div>
+                    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                        <button class="secondary-btn" type="button" onclick="previewSampleEmailAlert()" style="font-size:13px; padding:10px 16px;">
+                            👀 Preview Sample Email
+                        </button>
+                        <button class="primary-btn" type="button" id="adminDispatchAlertsBtn" onclick="adminDispatchEmailAlerts()" style="font-size:13px; padding:10px 18px;">
+                            🚀 Manual Dispatch Unavailable
+                        </button>
+                    </div>
+                </div>
+                <div id="adminDispatchStatus" style="font-size:13px; display:none;" role="status"></div>
+            </div>
+
+            <!-- Recent Dispatch History Table -->
+            <div class="section-title mt-35">
+                <div>
+                    <h3>Dispatch History & Logs</h3>
+                    <span>Chronological log of alerts sent to students</span>
+                </div>
+            </div>
+            <div id="adminEmailLogsContainer" class="admin-table-container">
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>Subscribers</th>
+                            <th>Sent</th>
+                            <th>Errors</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="adminEmailLogsBody">
+                        <tr><td colspan="5" style="text-align:center; color:#94a3b8; padding:20px;">Loading dispatch logs...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 </section>
 
@@ -626,6 +1033,24 @@
     <div class="modal-content">
         <button class="close" type="button" aria-label="Close internship details" onclick="closeModal()">×</button>
         <div id="modalBody"></div>
+    </div>
+</div>
+
+<!-- ================= EMAIL PREVIEW MODAL ================= -->
+<div class="modal" id="emailPreviewModal" role="dialog" aria-modal="true" aria-labelledby="emailPreviewTitle">
+    <div class="modal-content" style="max-width: 680px; padding: 24px; max-height: 90vh; overflow-y: auto;">
+        <button class="close" type="button" aria-label="Close email preview" onclick="closeEmailPreviewModal()">×</button>
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 14px; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px;">
+            <div style="font-size: 24px;">📧</div>
+            <div>
+                <h2 id="emailPreviewTitle" style="font-size: 18px; color: #0f766e; margin: 0;">Internship Alert Email Preview</h2>
+                <span id="emailPreviewMeta" style="font-size: 12px; color: #64748b;">Live rendering of the student inbox email</span>
+            </div>
+        </div>
+        <div id="emailPreviewContainer" style="border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; background: #ffffff;"></div>
+        <div style="display: flex; justify-content: flex-end; margin-top: 16px;">
+            <button class="secondary-btn" type="button" onclick="closeEmailPreviewModal()">Close Preview</button>
+        </div>
     </div>
 </div>
 
@@ -655,6 +1080,30 @@
             </div>
             <button class="primary-btn mt-20 full-width" type="submit">Save to Application Tracker</button>
         </form>
+    </div>
+</div>
+
+<!-- ================= APPLICATION CONFIRMATION MODAL ================= -->
+<div class="modal" id="applyConfirmModal" role="dialog" aria-modal="true" aria-labelledby="applyConfirmTitle">
+    <div class="modal-content" style="max-width: 520px; text-align: center;">
+        <button class="close" type="button" aria-label="Close modal" onclick="closeApplyConfirmModal()">×</button>
+        <div style="font-size: 42px; margin-bottom: 8px;">🚀</div>
+        <h2 id="applyConfirmTitle" style="color: #0f766e; margin-bottom: 6px;">Application Link Opened</h2>
+        <p class="company mb-20" id="applyConfirmSubtitle" style="font-size: 13.5px; line-height: 1.5;">
+            We opened the official employer portal in a new tab. Have you completed and submitted your application there?
+        </p>
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px; margin-bottom: 20px; text-align: left;">
+            <strong id="applyConfirmRole" style="display:block; font-size:15px; color:#172033; margin-bottom: 2px;">Role Title</strong>
+            <span id="applyConfirmCompany" style="display:block; font-size:13px; color:#0f766e; font-weight: 600;">Company Name</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+            <button class="primary-btn full-width" style="margin-top:0;" type="button" onclick="confirmApplicationSubmitted()">
+                ✅ Yes, I Submitted the Application!
+            </button>
+            <button class="secondary-btn full-width" style="margin-top:0;" type="button" onclick="confirmApplicationInProgress()">
+                ⏳ Applying Later (Track as In-Progress)
+            </button>
+        </div>
     </div>
 </div>
 
@@ -726,6 +1175,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script type="module" src="/script.js"></script>
 <script type="module" src="/src/chatbot.jsx"></script>
 

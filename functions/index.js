@@ -7,6 +7,7 @@ const {
     getDateInTimeZone,
     reconcileInternships
 } = require("./internship-sync");
+const { dispatchInternshipEmailAlerts, findNewInternships } = require("./email-alerts");
 const sources = require("./sources.json");
 
 const DATABASE_URL = "https://internmatch--07-default-rtdb.firebaseio.com";
@@ -45,7 +46,9 @@ async function syncInternships(database = getDatabase()) {
 
     const today = getDateInTimeZone();
     const internshipsRef = database.ref("internships");
+    let previousInternships = [];
     const transaction = await internshipsRef.transaction(current => {
+        previousInternships = Array.isArray(current) ? current : [];
         if (current === null && !results.some(result =>
             result.status === "success" && result.internships.length > 0
         )) return undefined;
@@ -68,6 +71,15 @@ async function syncInternships(database = getDatabase()) {
     });
 
     console.log(`Internship sync completed. Published catalog contains ${publishedCount} listings.`);
+
+    const newInternships = findNewInternships(previousInternships, transaction.snapshot.val());
+    if (newInternships.length > 0 && process.env.DISABLE_EMAIL_ALERTS !== "true") {
+        try {
+            await dispatchInternshipEmailAlerts(database, newInternships);
+        } catch (emailError) {
+            console.error(`Email alerts dispatch encountered an error: ${emailError.message}`);
+        }
+    }
 }
 
 async function main() {
