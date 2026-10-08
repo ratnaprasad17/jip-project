@@ -1282,11 +1282,92 @@ function mountProfileTools() {
     });
 }
 
+const countAnimationFrames = new WeakMap();
+const countAnimationTargets = new WeakMap();
+
+function animateValue(element, start, end, duration = 700) {
+    if (!element || !Number.isFinite(Number(end))) return;
+
+    const target = Number(end);
+    const currentTarget = countAnimationTargets.get(element);
+    if (currentTarget === target) return;
+
+    const previousFrame = countAnimationFrames.get(element);
+    if (previousFrame) cancelAnimationFrame(previousFrame);
+    countAnimationTargets.set(element, target);
+
+    const from = Number.isFinite(Number(start)) ? Number(start) : 0;
+    const motionReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (motionReduced || !Number.isFinite(duration) || duration <= 0 || from === target) {
+        element.textContent = String(Math.round(target));
+        return;
+    }
+
+    const startTime = performance.now();
+    const tick = now => {
+        const progress = Math.min((now - startTime) / duration, 1);
+        const easedProgress = 1 - Math.pow(1 - progress, 3);
+        element.textContent = String(Math.round(from + (target - from) * easedProgress));
+
+        if (progress < 1) {
+            countAnimationFrames.set(element, requestAnimationFrame(tick));
+        } else {
+            countAnimationFrames.delete(element);
+        }
+    };
+
+    countAnimationFrames.set(element, requestAnimationFrame(tick));
+}
+
+let cardRevealObserver = null;
+
+function initializeInternshipCardEffects(root = document) {
+    const cards = root.querySelectorAll(".card:not([data-effects-bound])");
+    if (!cards.length) return;
+
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (!cardRevealObserver && "IntersectionObserver" in window) {
+        cardRevealObserver = new IntersectionObserver(entries => {
+            entries.forEach(entry => {
+                if (!entry.isIntersecting) return;
+                entry.target.classList.add("visible");
+                cardRevealObserver.unobserve(entry.target);
+            });
+        }, { threshold: 0.12, rootMargin: "0px 0px -28px 0px" });
+    }
+
+    cards.forEach(card => {
+        card.dataset.effectsBound = "true";
+        card.classList.add("reveal");
+        if (reducedMotion || !cardRevealObserver) {
+            card.classList.add("visible");
+            return;
+        }
+        cardRevealObserver.observe(card);
+
+        card.addEventListener("pointermove", event => {
+            if (event.pointerType === "touch" || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+            const bounds = card.getBoundingClientRect();
+            const horizontalPosition = (event.clientX - bounds.left) / bounds.width * 2 - 1;
+            const verticalPosition = (event.clientY - bounds.top) / bounds.height * 2 - 1;
+            card.classList.add("is-tilting");
+            card.style.setProperty("--card-rotate-x", `${-verticalPosition * 4}deg`);
+            card.style.setProperty("--card-rotate-y", `${horizontalPosition * 4}deg`);
+        });
+
+        card.addEventListener("pointerleave", () => {
+            card.classList.remove("is-tilting");
+            card.style.setProperty("--card-rotate-x", "0deg");
+            card.style.setProperty("--card-rotate-y", "0deg");
+        });
+    });
+}
+
 function updateHomeStats() {
     const count = document.getElementById("internshipCount");
     const onlineCount = document.getElementById("onlineCount");
-    if (count) count.innerText = internships.length;
-    if (onlineCount) onlineCount.innerText = internships.filter(i => i.type === "Online").length;
+    if (count) animateValue(count, Number(count.textContent) || 0, internships.length);
+    if (onlineCount) animateValue(onlineCount, Number(onlineCount.textContent) || 0, internships.filter(i => i.type === "Online").length);
     listenToMetadata();
 }
 
@@ -1410,11 +1491,15 @@ function displayInternships() {
         statusText.innerText = `Showing ${filtered.length} of ${internships.length} opportunities`;
     }
 
+    if (cardRevealObserver) {
+        container.querySelectorAll(".card").forEach(card => cardRevealObserver.unobserve(card));
+    }
     container.innerHTML = filtered.length
         ? filtered.map(createCard).join("")
         : internships.length
             ? "<p class=\"company\">No internships match your filter criteria. Try clicking Reset Filters.</p>"
             : "<p class=\"company\">No current internships are synced yet. Please check back after the next feed update.</p>";
+    initializeInternshipCardEffects(container);
 }
 
 /* =========================================================
@@ -3908,6 +3993,7 @@ Object.assign(window, {
     adminDispatchEmailAlerts,
     adminLogin,
     adminLogout,
+    animateValue,
     apply,
     approveStudent,
     autoFillCoverLetterProfile,
@@ -3979,6 +4065,14 @@ Object.assign(window, {
     switchReviewsTab,
     togglePassword
 });
+
+const navbar = document.querySelector(".navbar");
+function updateNavbarScrollState() {
+    if (navbar) navbar.classList.toggle("nav-scrolled", window.scrollY > 50);
+}
+
+window.addEventListener("scroll", updateNavbarScrollState, { passive: true });
+updateNavbarScrollState();
 
 mountProfileTools();
 window.addEventListener("hashchange", showProfileToolFromHash);
