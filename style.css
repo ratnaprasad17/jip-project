@@ -173,25 +173,25 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 ========================================================= */
 .navbar {
     height: 70px;
-    background: rgba(8, 37, 35, .97);
+    background: rgba(255, 255, 255, .88);
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 0 7%;
-    border-bottom: 1px solid rgba(255, 255, 255, .1);
+    border-bottom: 1px solid rgba(226, 232, 240, .86);
     position: sticky;
     top: 0;
     z-index: 100;
     backdrop-filter: blur(14px) saturate(150%);
     -webkit-backdrop-filter: blur(14px) saturate(150%);
-    box-shadow: 0 8px 28px rgba(8, 37, 35, .12);
+    box-shadow: 0 4px 20px rgba(15, 23, 42, .045);
     transition: height .25s ease, padding .25s ease, background-color .25s ease, box-shadow .25s ease;
 }
 
 .navbar.nav-scrolled {
     height: 62px;
-    background: rgba(8, 37, 35, .985);
-    box-shadow: 0 12px 32px rgba(8, 37, 35, .2);
+    background: rgba(255, 255, 255, .96);
+    box-shadow: 0 9px 26px rgba(15, 23, 42, .1);
 }
 
 .navbar .logo {
@@ -200,10 +200,10 @@ button:focus-visible, input:focus-visible, select:focus-visible {
     gap: 10px;
     font-size: 24px;
     font-weight: bold;
-    color: #a7f3df;
+    color: #0f766e;
 }
 
-.logo span { color: #f8fafc; }
+.logo span { color: #111827; }
 
 .nav-logo-img {
     height: 45px;
@@ -216,11 +216,11 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 }
 
 .nav-buttons { display: flex; gap: 10px; }
-.nav-btn { border: 1px solid transparent; border-radius: 10px; background: transparent; padding: 10px 15px; color: #d3e4df; transition: background-color .2s ease, color .2s ease, border-color .2s ease; }
-.nav-btn:hover { color: #ffffff; background: rgba(255, 255, 255, .09); }
-.nav-btn:focus-visible { outline-color: #a7f3df; }
-.logout-nav-btn { color: #ffc4ba; }
-.logout-nav-btn:hover { color: #fff; background: rgba(255, 128, 109, .16); }
+.nav-btn { border: 1px solid transparent; border-radius: 10px; background: transparent; padding: 10px 15px; color: #475569; transition: background-color .2s ease, color .2s ease, border-color .2s ease; }
+.nav-btn:hover { color: #0f766e; background: rgba(15, 118, 110, .06); }
+.nav-btn:focus-visible { outline-color: rgba(15, 118, 110, .45); }
+.logout-nav-btn { color: #be123c; }
+.logout-nav-btn:hover { color: #9f1239; background: rgba(190, 18, 60, .06); }
 
 /* =========================================================
    PAGE SYSTEM
