@@ -759,12 +759,32 @@ function adminLogout() {
 ========================================================= */
 let allApprovedStudents = [];
 
+function bindStudentActionHandlers(container) {
+    if (container.dataset.actionsBound === "true") return;
+    container.dataset.actionsBound = "true";
+    container.addEventListener("click", event => {
+        const button = event.target instanceof Element
+            ? event.target.closest("button[data-student-action]")
+            : null;
+        if (!button || !container.contains(button)) return;
+
+        const { studentAction, studentUid, studentName } = button.dataset;
+        if (!studentUid) return;
+
+        if (studentAction === "approve") approveStudent(studentUid);
+        if (studentAction === "reject") rejectStudent(studentUid);
+        if (studentAction === "revoke") revokeStudentApproval(studentUid, studentName);
+        if (studentAction === "delete") deleteStudentAccount(studentUid, studentName);
+    });
+}
+
 async function displayApprovedStudents() {
     const container = document.getElementById("approvedStudentList");
     const count = document.getElementById("approvedStudentCount");
     if (!container || !count) return;
 
     try {
+        bindStudentActionHandlers(container);
         await ensureAdminFirebaseSession();
         const snapshot = await firebase.database().ref("students").once("value");
         const students = snapshot.val() || {};
@@ -807,8 +827,8 @@ function renderApprovedStudentsList(list) {
     }
 
     container.innerHTML = list.map(student => {
-        const safeUid = escapeHTML(JSON.stringify(String(student.uid)));
-        const safeName = escapeHTML(JSON.stringify(String(student.name || "Student")));
+        const safeUid = escapeHTML(String(student.uid));
+        const safeName = escapeHTML(String(student.name || "Student"));
         return `
             <div class="admin-card-row">
                 <div class="admin-card-main">
@@ -825,8 +845,8 @@ function renderApprovedStudentsList(list) {
                     ${student.skills ? `<div class="admin-card-tags"><span class="admin-tag-skills">🧠 ${escapeHTML(student.skills)}</span></div>` : ""}
                 </div>
                 <div class="admin-card-actions">
-                    <button class="secondary-btn" style="border-color:#f59e0b;color:#d97706;" onclick="revokeStudentApproval(${safeUid}, ${safeName})" title="Revoke approval and move back to Pending">Revoke Access</button>
-                    <button class="danger-btn" onclick="deleteStudentAccount(${safeUid}, ${safeName})" title="Remove student profile from the database">Remove profile</button>
+                    <button class="secondary-btn" type="button" data-student-action="revoke" data-student-uid="${safeUid}" data-student-name="${safeName}" style="border-color:#f59e0b;color:#d97706;" title="Revoke approval and move back to Pending">Revoke Access</button>
+                    <button class="danger-btn" type="button" data-student-action="delete" data-student-uid="${safeUid}" data-student-name="${safeName}" title="Remove student profile from the database">Remove profile</button>
                 </div>
             </div>
         `;
@@ -870,6 +890,7 @@ async function displayStudentRequests() {
     if (!container) return;
 
     try {
+        bindStudentActionHandlers(container);
         if (!isFirebaseConfigured()) throw new Error("local mode");
         await ensureAdminFirebaseSession();
         const snapshot = await firebase.database().ref("students").once("value");
@@ -884,7 +905,7 @@ async function displayStudentRequests() {
         }
 
         container.innerHTML = pending.map(([uid, student]) => {
-            const safeUid = JSON.stringify(String(uid));
+            const safeUid = escapeHTML(String(uid));
             return `
                 <div class="admin-card-row" style="margin-bottom:12px;">
                     <div class="admin-card-main">
@@ -900,8 +921,8 @@ async function displayStudentRequests() {
                         </div>
                     </div>
                     <div class="admin-card-actions">
-                        <button class="primary-btn" style="padding:7px 16px;font-size:0.875rem;" onclick="approveStudent(${safeUid})">Accept</button>
-                        <button class="danger-btn" onclick="rejectStudent(${safeUid})">Reject</button>
+                        <button class="primary-btn" type="button" data-student-action="approve" data-student-uid="${safeUid}" style="padding:7px 16px;font-size:0.875rem;">Accept</button>
+                        <button class="danger-btn" type="button" data-student-action="reject" data-student-uid="${safeUid}">Reject</button>
                     </div>
                 </div>
             `;
