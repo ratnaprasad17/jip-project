@@ -78,6 +78,13 @@ function safeHttpsUrl(value) {
     }
 }
 
+function safeLogoDomain(value) {
+    const domain = String(value || "").toLowerCase();
+    return /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(domain)
+        ? domain
+        : "";
+}
+
 function safeOfficialApplicationUrl(provider, value, sourceHosts = []) {
     const safeUrl = safeHttpsUrl(value);
     if (!safeUrl) return "";
@@ -179,6 +186,7 @@ function normalizePosting(source, posting, fields) {
     const searchableText = `${title} ${description} ${fields.department || ""}`;
     const postingId = String(fields.id || "");
     if (!postingId) return null;
+    const logoDomain = safeLogoDomain(source.logoDomain);
 
     const internship = {
         id: stableInternshipId(source.key, postingId),
@@ -194,7 +202,8 @@ function normalizePosting(source, posting, fields) {
         description: description || "View the original posting for full internship details.",
         link: applicationLink,
         _sourceKey: source.key,
-        _sourceId: postingId
+        _sourceId: postingId,
+        ...(logoDomain ? { logoDomain } : {})
     };
 
     // Keep the original posting date so the website can show students how recent the listing is.

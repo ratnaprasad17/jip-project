@@ -28,6 +28,8 @@ This project was built as a student project at **Sri Vasavi Engineering College*
 - 📊 **Insights dashboard** for active roles, employers, skills, India hiring locations and work arrangements, including skill-to-listing drill-down
 - 📧 **Opt-in email alerts** for new internships, changes to saved roles, and application stages changed in Tracker; requires SMTP configuration
 - ✉️ **Email verification** for newly registered student accounts only; existing accounts continue to sign in as before
+- 🏢 **Employer branding** on internship cards, with company favicon logos and a clean initials fallback
+- 🧭 **A complete site footer** with About, privacy notice, terms, official college contact links, and the site assistant
 - 🎯 **Personalised matching** based on:
   - Internship type (Online / Offline)
   - Branch and specialization

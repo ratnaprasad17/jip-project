@@ -1161,20 +1161,46 @@
 
 <!-- ================= FOOTER ================= -->
 <footer>
-    <img src="vasavi-logo.jpg" alt="Sri Vasavi Engineering College" class="footer-logo-img">
-    <br>
-    <strong>InternMatch</strong>
-    <br><br>
-    Helping students and graduates find better internships.
-    <div class="footer-assistant">
-        <span>Need a hand using InternMatch?</span>
-        <button class="footer-assistant-btn" type="button" onclick="window.dispatchEvent(new CustomEvent('internmatch:open-helpdesk'))">
-            Chat with the InternMatch assistant
-        </button>
+    <div class="footer-inner">
+        <div class="footer-brand">
+            <img src="vasavi-logo.jpg" alt="Sri Vasavi Engineering College" class="footer-logo-img">
+            <strong>InternMatch</strong>
+            <p>Helping students and graduates discover internship opportunities matched to their goals.</p>
+            <span class="footer-affiliation">A student project at Sri Vasavi Engineering College</span>
+        </div>
+        <nav class="footer-column" aria-label="About InternMatch">
+            <h2>Discover</h2>
+            <button type="button" class="footer-link" onclick="openFooterInfo('about')">About us</button>
+            <a class="footer-link" href="https://srivasaviengg.ac.in/" target="_blank" rel="noopener noreferrer">Sri Vasavi Engineering College</a>
+        </nav>
+        <nav class="footer-column" aria-label="Legal information">
+            <h2>Information</h2>
+            <button type="button" class="footer-link" onclick="openFooterInfo('privacy')">Privacy notice</button>
+            <button type="button" class="footer-link" onclick="openFooterInfo('terms')">Terms of use</button>
+        </nav>
+        <div class="footer-column footer-contact">
+            <h2>Contact &amp; support</h2>
+            <a class="footer-link" href="https://srivasaviengg.ac.in/contact" target="_blank" rel="noopener noreferrer">Contact us</a>
+            <a class="footer-link" href="mailto:placements@srivasaviengg.ac.in?subject=InternMatch%20support">Email support</a>
+            <button class="footer-assistant-btn" type="button" onclick="window.dispatchEvent(new CustomEvent('internmatch:open-helpdesk'))">
+                Chat with the InternMatch assistant
+            </button>
+        </div>
     </div>
-    <br><br>
-    © 2026 InternMatch — Student Project
+    <div class="footer-bottom">
+        <span>© 2026 InternMatch · Student project</span>
+        <span>Internship details are provided by employers and may change.</span>
+    </div>
 </footer>
+
+<div class="modal footer-info-modal" id="footerInfoModal" role="dialog" aria-modal="true" aria-labelledby="footerInfoTitle" aria-hidden="true">
+    <div class="modal-content">
+        <button class="close" type="button" aria-label="Close information dialog" onclick="closeFooterInfo()">×</button>
+        <p class="footer-info-kicker">INTERNMATCH · STUDENT INFORMATION</p>
+        <h2 id="footerInfoTitle"></h2>
+        <div id="footerInfoContent" class="footer-info-content"></div>
+    </div>
+</div>
 
 <div id="chatbot-root"></div>
 

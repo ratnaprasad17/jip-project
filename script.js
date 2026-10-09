@@ -1,7 +1,12 @@
+import internshipSources from "./functions/sources.json";
+
 /* =========================================================
    INTERNSHIP DATA
 ========================================================= */
 let internships = [];
+const COMPANY_LOGO_DOMAINS = new Map(internshipSources
+    .filter(source => source.logoDomain)
+    .map(source => [source.key, source.logoDomain]));
 const LEGACY_DEMO_LISTINGS = [
     { id: 1, title: "Machine Learning Intern", company: "TechNova AI" },
     { id: 2, title: "Data Science Intern", company: "DataWorks" },
@@ -116,6 +121,16 @@ function normalizeImportedListing(internship) {
         branch: internship.branch === "All branches" ? "Not specified" : internship.branch,
         description: getCachedRoleDescription(internship.description)
     };
+}
+
+function getCompanyLogoMarkup(internship, className = "company-logo") {
+    const company = String(internship.company || "Company");
+    const logoDomain = internship.logoDomain || COMPANY_LOGO_DOMAINS.get(internship._sourceKey);
+    const initials = company.split(/[\s.-]+/).filter(Boolean).slice(0, 2).map(word => word[0]).join("").toUpperCase() || "IM";
+    const image = logoDomain
+        ? `<img src="https://www.google.com/s2/favicons?domain=${encodeURIComponent(logoDomain)}&sz=128" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" onload="this.nextElementSibling.hidden=true" onerror="this.hidden=true">`
+        : "";
+    return `<div class="${className}" role="img" aria-label="${escapeHTML(`${company} logo`)}">${image}<span aria-hidden="true">${escapeHTML(initials)}</span></div>`;
 }
 
 function getInternshipChatData() {
@@ -1607,7 +1622,10 @@ function displayFeatured() {
         const workMode = hasPublishedValue(internship.type) ? internship.type : "Work mode not listed";
         card.innerHTML = `
             <div class="feature-card-top">
-                <span class="feature-brand-company">${escapeHTML(internship.company || "Company")}</span>
+                <div class="feature-company-brand">
+                    ${getCompanyLogoMarkup(internship, "feature-company-logo")}
+                    <span class="feature-brand-company">${escapeHTML(internship.company || "Company")}</span>
+                </div>
                 <span class="feature-brand-label">FEATURED</span>
             </div>
             <h3>${escapeHTML(internship.title)}</h3>
@@ -1749,7 +1767,7 @@ function createCard(internship) {
         <div class="card ${isApplied ? "card-applied" : ""}" data-internship-id="${escapeHTML(internship.id)}">
             <div class="card-top">
                 <div style="display:flex;align-items:center;gap:6px;">
-                    <div class="company-logo">💼</div>
+                    ${getCompanyLogoMarkup(internship)}
                     ${isApplied ? `<span class="status-badge status-applied" style="font-size:11px;padding:2px 7px;">✓ Applied</span>` : ""}
                 </div>
                 <button class="bookmark" type="button" onclick="bookmark(${safeId})"
@@ -1889,7 +1907,7 @@ function showDetails(id) {
     body.innerHTML = `
         <article class="internship-detail">
             <header class="detail-heading">
-                <div class="detail-company-mark" aria-hidden="true">${escapeHTML((internship.company || "I").charAt(0).toUpperCase())}</div>
+                ${getCompanyLogoMarkup(internship, "detail-company-mark")}
                 <p class="detail-company">${escapeHTML(internship.company || "Company not specified")}</p>
                 <h2 id="modalTitle">${escapeHTML(internship.title || "Internship")}</h2>
                 ${detailTags.length ? `<div class="detail-tags">${detailTags.map(tag => `<span>${escapeHTML(tag)}</span>`).join("")}</div>` : ""}
@@ -1960,6 +1978,78 @@ function closeModal() {
     modal.classList.remove("show");
     if (lastModalTrigger && lastModalTrigger.isConnected) lastModalTrigger.focus();
 }
+
+const FOOTER_INFO = {
+    about: {
+        title: "About InternMatch",
+        content: `
+            <p>InternMatch is a student project at Sri Vasavi Engineering College, built to help students and graduates discover internship opportunities that fit their skills, study areas, and career goals.</p>
+            <p>Listings are gathered from employer career feeds. Students can compare opportunities, save roles, track their own application progress, and use the English-language assistant for help using the site.</p>
+            <p>InternMatch is an independent student project, not an employer or a hiring agency. Applications are completed on the employer's own website.</p>
+        `
+    },
+    privacy: {
+        title: "Privacy notice",
+        content: `
+            <p><strong>Information used by the site.</strong> Student account details and profile information are stored with Firebase. Saved internships, preferences, and tracker entries are used to provide the features you choose. Some site state is kept in this browser.</p>
+            <p><strong>Access and email.</strong> Authorized college administrators can review student account information for approval and account administration. Email alerts are sent only for the categories you enable in your profile. InternMatch does not receive private employer-side application decisions.</p>
+            <p><strong>External services.</strong> Sign-in and account data use Firebase. Employer logos may load through Google's favicon service. Application links lead to third-party employer sites, whose privacy practices are separate from InternMatch.</p>
+            <p>For questions about your student account or to request assistance with your information, contact the <a href="mailto:placements@srivasaviengg.ac.in?subject=InternMatch%20privacy%20question">Sri Vasavi Engineering College placement office</a>.</p>
+        `
+    },
+    terms: {
+        title: "Terms of use",
+        content: `
+            <p>Use InternMatch for personal internship discovery and application tracking. Provide accurate account details and keep your sign-in credentials private.</p>
+            <p>Listings are supplied by employer feeds and can be changed, filled, or withdrawn without notice. Check the employer's official posting for current requirements, dates, compensation, and application instructions before applying.</p>
+            <p>InternMatch is not an employer and does not guarantee listing accuracy, eligibility, interviews, or employment. Applications and hiring decisions are managed by each employer. Tracker stages are maintained by the student and do not represent employer-confirmed status.</p>
+            <p>Contact the <a href="https://srivasaviengg.ac.in/contact" target="_blank" rel="noopener noreferrer">college contact page</a> for institutional enquiries.</p>
+        `
+    }
+};
+let footerInfoTrigger = null;
+
+function openFooterInfo(section) {
+    const info = FOOTER_INFO[section];
+    if (!info) return;
+    const modal = document.getElementById("footerInfoModal");
+    footerInfoTrigger = document.activeElement;
+    document.getElementById("footerInfoTitle").innerText = info.title;
+    document.getElementById("footerInfoContent").innerHTML = info.content;
+    modal.classList.add("show");
+    modal.setAttribute("aria-hidden", "false");
+    modal.querySelector(".close").focus();
+}
+
+function closeFooterInfo() {
+    const modal = document.getElementById("footerInfoModal");
+    modal.classList.remove("show");
+    modal.setAttribute("aria-hidden", "true");
+    if (footerInfoTrigger?.isConnected) footerInfoTrigger.focus();
+}
+
+document.getElementById("footerInfoModal").addEventListener("click", event => {
+    if (event.target === event.currentTarget) closeFooterInfo();
+});
+
+document.addEventListener("keydown", event => {
+    const modal = document.getElementById("footerInfoModal");
+    if (!modal.classList.contains("show")) return;
+    if (event.key === "Escape") {
+        closeFooterInfo();
+        return;
+    }
+    if (event.key !== "Tab") return;
+    const focusable = [...modal.querySelectorAll("button:not([disabled]), a[href], [tabindex]:not([tabindex='-1'])")];
+    if (!focusable.length) return;
+    if (event.shiftKey && document.activeElement === focusable[0]) {
+        event.preventDefault();
+        focusable[focusable.length - 1].focus();
+    } else if (!event.shiftKey && document.activeElement === focusable[focusable.length - 1]) {
+        event.preventDefault();
+        focusable[0].focus();
+    }
+});
 
 document.getElementById("detailsModal").addEventListener("click", event => {
     if (event.target === event.currentTarget) closeModal();
@@ -4366,12 +4456,14 @@ Object.assign(window, {
     findMatches,
     openAddTrackerModal,
     openCompanyReviews,
+    openFooterInfo,
     openFounderLogin,
     rejectStudent,
     registerStudent,
     resendSignupVerification,
     removeViewedInternship,
     resetStudentPassword,
+    closeFooterInfo,
     returnToStudentLogin,
     renderInsightsDashboard,
     renderTrackerPage,

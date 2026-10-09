@@ -19,6 +19,7 @@ const source = { key: "sample-company", company: "Sample Company" };
 test("configured internship feeds have unique keys and complete source metadata", () => {
     assert.equal(new Set(sources.map(item => item.key)).size, sources.length);
     assert.ok(sources.every(item => item.key && item.company && item.board && ["greenhouse", "lever", "ashby"].includes(item.provider)));
+    assert.ok(sources.every(item => /^[a-z0-9-]+(?:\.[a-z0-9-]+)+$/.test(item.logoDomain)));
     assert.equal(sources.length, 46);
 });
 
@@ -38,7 +39,7 @@ test("service account validation fails clearly for missing or invalid secrets", 
 });
 
 test("Greenhouse import keeps internship listings and normalizes fields", () => {
-    const listings = normalizeGreenhouseJobs(source, [
+    const listings = normalizeGreenhouseJobs({ ...source, logoDomain: "sample-company.com" }, [
         {
             id: 14,
             title: "Software Engineering Intern",
@@ -62,7 +63,19 @@ test("Greenhouse import keeps internship listings and normalizes fields", () => 
     assert.equal(listings[0].branch, "Not specified");
     assert.deepEqual(listings[0].skills, ["Python", "SQL"]);
     assert.equal(listings[0]._sourceId, "14");
+    assert.equal(listings[0].logoDomain, "sample-company.com");
     assert.equal(listings[0].postedDate, "2026-09-30");
+});
+
+test("imported company logo domains are restricted to plain hostnames", () => {
+    const listings = normalizeGreenhouseJobs({ ...source, logoDomain: "https://attacker.example/path" }, [{
+        id: 17,
+        title: "Product Intern",
+        location: { name: "Remote" },
+        absolute_url: "https://boards.greenhouse.io/sample/jobs/17"
+    }]);
+
+    assert.equal(Object.hasOwn(listings[0], "logoDomain"), false);
 });
 
 test("Lever import ignores insecure application URLs", () => {
