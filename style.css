@@ -23,7 +23,7 @@ body {
 html.is-guest body {
     overflow: hidden;
 }
-html.is-guest body > *:not(#authGate):not(#loadingOverlay) {
+html.is-guest body > *:not(#authGate):not(#loadingOverlay):not(#chatbot-root) {
     display: none !important;
 }
 html.is-guest #authGate {
@@ -43,7 +43,7 @@ html.is-authenticated #authGate {
 
 body.auth-locked { overflow: hidden; }
 
-body.auth-locked > *:not(#authGate):not(#loadingOverlay),
+body.auth-locked > *:not(#authGate):not(#loadingOverlay):not(#chatbot-root),
 body.founder-login > *:not(#admin):not(#loadingOverlay) {
     display: none !important;
 }
@@ -542,6 +542,22 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .card.is-tilting { transition: opacity .55s ease, transform .08s ease-out, box-shadow .25s ease, border-color .25s ease; }
 
 .card-top { display: flex; justify-content: space-between; align-items: start; }
+.match-score {
+    display: inline-flex;
+    align-items: center;
+    min-height: 30px;
+    padding: 5px 10px;
+    border: 1px solid #b8e2d1;
+    border-radius: 999px;
+    background: #e8f7ef;
+    color: #146b47;
+    font-size: 12px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+.match-empty { grid-column: 1 / -1; padding: 22px; border: 1px dashed #cbd5e1; border-radius: 14px; background: #fff; }
+:root[data-theme="dark"] .match-score { background: #173a31; border-color: #2b6b52; color: #a8e5c4; }
+:root[data-theme="dark"] .match-empty { background: #192629; border-color: #40575a; }
 
 .company-logo {
     width: 45px;

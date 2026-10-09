@@ -61,7 +61,7 @@
                         onclick="togglePassword('studentLoginPassword', this)">&#128065;</button>
             </label>
             <button class="primary-btn full-width" type="submit">Student Login</button>
-            <p class="auth-message" id="studentLoginMessage"></p>
+            <p class="auth-message" id="studentLoginMessage" role="status" aria-live="polite"></p>
             <button class="auth-link" type="button" onclick="resetStudentPassword()">Forgot password?</button>
             <button class="auth-link" type="button" onclick="showRegistration()">New student? Register here</button>
             <br>
@@ -69,19 +69,19 @@
         </form>
 
         <form id="studentRegistrationForm" hidden onsubmit="event.preventDefault(); registerStudent();">
-            <label>Full Name<input id="registerName" placeholder="Your full name" required></label>
-            <label>College Email<input id="registerEmail" type="email" placeholder="e.g. name@srivasaviengg.ac.in" required></label>
-            <label>Phone Number<input id="registerPhone" type="tel" placeholder="10-digit mobile number" maxlength="15" required></label>
-            <label>College / Branch<input id="registerBranch" placeholder="e.g. Sri Vasavi / CSE" required></label>
-            <label>Roll Number<input id="registerRoll" placeholder="e.g. 21A81A0501" style="text-transform:uppercase" required></label>
+            <label>Full Name<input id="registerName" name="name" autocomplete="name" maxlength="100" placeholder="Your full name" required></label>
+            <label>College Email<input id="registerEmail" name="email" type="email" autocomplete="email" maxlength="254" placeholder="e.g. name@srivasaviengg.ac.in" required></label>
+            <label>Phone Number<input id="registerPhone" name="phone" type="tel" autocomplete="tel" inputmode="tel" placeholder="10-digit mobile number" maxlength="15" required></label>
+            <label>College / Branch<input id="registerBranch" name="branch" autocomplete="organization" maxlength="120" placeholder="e.g. Sri Vasavi / CSE" required></label>
+            <label>Roll Number<input id="registerRoll" name="rollNumber" autocomplete="off" maxlength="40" placeholder="e.g. 21A81A0501" style="text-transform:uppercase" required></label>
             <label class="password-field">Password
-                <input id="registerPassword" type="password" minlength="6" placeholder="At least 6 characters" required>
+                <input id="registerPassword" name="new-password" type="password" autocomplete="new-password" minlength="6" maxlength="128" placeholder="At least 6 characters" required>
                 <button class="password-toggle" type="button" aria-label="Show password" title="Show password"
                         onclick="togglePassword('registerPassword', this)">&#128065;</button>
             </label>
-            <div style="font-size:11px;color:#64748b;margin-top:6px;line-height:1.4;">🔒 Email, Phone Number, and Roll Number are verified for unique single-account registration.</div>
+            <div style="font-size:11px;color:#64748b;margin-top:6px;line-height:1.4;">🔒 Email, phone number, and roll number are checked to prevent duplicate accounts. New accounts need founder approval.</div>
             <button class="primary-btn full-width" type="submit">Submit Registration</button>
-            <p class="auth-message" id="registrationMessage"></p>
+            <p class="auth-message" id="registrationMessage" role="status" aria-live="polite"></p>
             <button class="auth-link" type="button" onclick="showStudentLogin()">Back to student login</button>
         </form>
     </div>
@@ -99,6 +99,7 @@
         <button class="nav-btn" onclick="showPage('favorites')">Saved <span id="savedCount">0</span></button>
         <button class="nav-btn" onclick="showPage('tracker')">Tracker</button>
         <button class="nav-btn" onclick="showPage('insights')">Insights</button>
+        <button class="nav-btn" type="button" onclick="window.dispatchEvent(new CustomEvent('internmatch:open-helpdesk'))">Help Desk</button>
         <button class="nav-btn" onclick="showPage('profile')">My Profile</button>
         <button class="nav-btn logout-nav-btn" onclick="studentLogout()">Logout</button>
     </div>
@@ -278,6 +279,9 @@
                 </div>
             </div>
             <div class="profile-alerts-actions" style="display:flex; gap:10px; margin-top:14px; flex-wrap:wrap;">
+                <button class="small-primary" type="button" id="toggleStudentEmailAlertsBtn" aria-pressed="false" onclick="toggleStudentEmailAlerts()" style="font-size:13px; padding:8px 14px;">
+                    Enable email alerts
+                </button>
                 <button class="secondary-btn" type="button" onclick="previewStudentEmailAlert()" style="font-size:13px; padding:8px 14px;">
                     👀 Preview My Email Alert
                 </button>
@@ -376,7 +380,7 @@
         <div class="form-group" style="background:#f0fdfa; padding:12px 14px; border-radius:10px; border:1px solid #99f6e4;">
             <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-weight:normal; margin:0; font-size:13px; color:#0f766e;">
                 <input type="checkbox" id="prefEmailAlerts" checked style="width:auto; min-height:auto;">
-                <span><strong>Send Email Alerts:</strong> Automatically email me when newly verified internships match these criteria</span>
+                <span><strong>Send Email Alerts:</strong> Use the alert frequency and filter saved in My Profile. Email delivery requires the site email service.</span>
             </label>
         </div>
 

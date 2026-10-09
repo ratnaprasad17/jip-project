@@ -23,14 +23,16 @@ This project was built as a student project at **Sri Vasavi Engineering College*
 - 🔑 Forgot password and show/hide password options
 - ☼ Persistent light/dark appearance, initialized from the device preference
 - 🔥 **Featured and latest internships** on the home page
-- 💬 **InternMatch assistant** for current listings, follow-up questions, application steps and matching rules
-- 🔎 **Live search** by internship title, skill or company
+- 💬 **English-language Help Desk** on the login screen and throughout the site for listings, registration, applications, email alerts, Insights and career tools
+- 🔎 **Live search and filters** by title, employer, skill, location, work mode and branch, with sorting and reset controls
+- 📊 **Insights dashboard** for active roles, employers, skills, India hiring locations and work arrangements, including skill-to-listing drill-down
+- 📧 **Opt-in email alerts** managed in My Profile; delivery runs after a successful catalog sync and requires administrator-configured SMTP
 - 🎯 **Personalised matching** based on:
   - Internship type (Online / Offline)
   - Branch and specialization
-   - Skills and preferred location
+  - Skills and preferred location; only roles in the selected work mode are recommended
 - 📄 Detailed internship view with stipend, duration, skills and apply link
-- 👤 Student profile page
+- 👤 Student profile page, ATS resume checker and cover letter generator
 
 ### For Admin
 - 👨‍💻 Firebase-authenticated admin login with database-enforced access
@@ -100,15 +102,14 @@ Admin access is never granted by a password in the website source or browser sto
 1. A student **registers** with name, email, phone, college/branch and roll number.
 2. The admin **approves** the account.
 3. The student **logs in** and fills in preferences on the *Find Internship* page.
-4. InternMatch shows **recommended internships** that match the profile.
+4. InternMatch shows **recommended internships** for the selected work mode, ranked against the entered preferences.
 5. The student opens the details and **applies** through the provided link.
+6. The Help Desk answers in English using the currently loaded catalog and documented site features. It does not guess employer details missing from the source feeds.
 
 ---
 
 ## 🔮 Future Improvements
 
-- [ ] Email notifications for new matching internships
-- [ ] Resume upload for students
 - [ ] Admin activity audit log
 - [ ] Advanced filters (stipend range, duration)
 

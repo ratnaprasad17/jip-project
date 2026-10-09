@@ -10,7 +10,7 @@ const LEGACY_DEMO_LISTINGS = [
     { id: 5, title: "Cyber Security Intern", company: "SecureNet" },
     { id: 6, title: "Cloud Computing Intern", company: "CloudSphere" }
 ];
-const INDIA_CITY_PATTERN = /\b(?:bengaluru|bangalore|hyderabad|mumbai|pune|chennai|gurugram|gurgaon|noida|new delhi|delhi|kolkata|ahmedabad|jaipur|kochi|cochin|thiruvananthapuram|visakhapatnam|vizag|lucknow|indore|bhubaneswar|mysuru|mysore|mangaluru|mangalore|coimbatore|nagpur|chandigarh|surat|vadodara|bhopal|patna|kanpur|ghaziabad|dehradun|goa)\b/i;
+const INDIA_CITY_PATTERN = /\b(?:bengaluru|bangalore|hyderabad|mumbai|pune|chennai|gurugram|gurgaon|noida|new delhi|delhi|ncr|kolkata|ahmedabad|jaipur|kochi|cochin|thiruvananthapuram|visakhapatnam|vizag|lucknow|indore|bhubaneswar|mysuru|mysore|mangaluru|mangalore|coimbatore|nagpur|chandigarh|surat|vadodara|bhopal|patna|kanpur|ghaziabad|dehradun|goa)\b/i;
 
 function isIndiaBasedListing(internship) {
     const location = String(internship.location || "");
@@ -44,10 +44,45 @@ function isCurrentListing(internship) {
 
 function getWorkTypeFromLocation(location) {
     const normalized = String(location || "").toLowerCase();
-    if (/remote|work from home|anywhere|virtual/.test(normalized)) return "Online";
     if (/hybrid/.test(normalized)) return "Hybrid";
+    if (/remote|work from home|anywhere|virtual|online/.test(normalized)) return "Online";
     if (/on[- ]site|onsite|in[- ]person|office[- ]based/.test(normalized)) return "Offline";
     return "Not specified";
+}
+
+function getListingWorkType(internship) {
+    const type = String(internship.type || "").trim().toLowerCase();
+    if (type === "online" || type === "remote") return "Online";
+    if (type === "offline" || type === "onsite" || type === "on-site") return "Offline";
+    if (type === "hybrid") return "Hybrid";
+    return getWorkTypeFromLocation(internship.location);
+}
+
+function normalizeMatchText(value) {
+    return String(value || "")
+        .normalize("NFKD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .replace(/&/g, " and ")
+        .replace(/[^a-z0-9]+/g, " ")
+        .trim()
+        .replace(/\s+/g, " ");
+}
+
+function matchesSkill(listingSkill, requestedSkill) {
+    const listingText = normalizeMatchText(listingSkill);
+    const requestedText = normalizeMatchText(requestedSkill);
+    return Boolean(listingText && requestedText &&
+        (listingText === requestedText || listingText.includes(requestedText) || requestedText.includes(listingText)));
+}
+
+function matchesStudyField(listingField, requestedField) {
+    const listingText = normalizeMatchText(listingField);
+    const requestedText = normalizeMatchText(requestedField);
+    if (!listingText || !requestedText) return false;
+    if (listingText.includes(requestedText) || requestedText.includes(listingText)) return true;
+    const aiMlTerms = /\b(artificial intelligence|ai|machine learning|ml)\b/;
+    return aiMlTerms.test(listingText) && aiMlTerms.test(requestedText);
 }
 
 function getCachedRoleDescription(description) {
@@ -90,7 +125,7 @@ function getInternshipChatData() {
         company: internship.company,
         isSaved: bookmarks.some(bookmarkId => String(bookmarkId) === String(internship.id)),
         isIndia: isIndiaBasedListing(internship),
-        type: internship.type,
+        type: getListingWorkType(internship),
         branch: internship.branch === "All branches" ? "Not specified" : internship.branch,
         specialization: internship.specialization,
         location: internship.location,
@@ -246,6 +281,11 @@ function updateStudentProfile() {
     const alertsCard = document.getElementById("profileAlertsCard");
     const alertBadge = document.getElementById("profileAlertStatusBadge");
     const alertText = document.getElementById("profileAlertStatusText");
+    const alertToggle = document.getElementById("toggleStudentEmailAlertsBtn");
+    const preferencesAlertToggle = document.getElementById("prefEmailAlerts");
+    if (preferencesAlertToggle) {
+        preferencesAlertToggle.checked = student.emailAlertsEnabled === true;
+    }
     if (alertsCard && alertBadge && alertText) {
         const isAlertEnabled = student.emailAlertsEnabled === true;
         const freq = student.emailAlertFrequency || "daily";
@@ -257,14 +297,74 @@ function updateStudentProfile() {
             alertBadge.innerText = `Active (${freqText})`;
             alertBadge.style.background = "#dcfce7";
             alertBadge.style.color = "#15803d";
-            alertText.innerHTML = `Delivering digests of ${escapeHTML(filterText)} directly to <strong>${escapeHTML(student.email || "")}</strong>.`;
+            alertText.innerHTML = `Enabled for ${escapeHTML(filterText)} sent to <strong>${escapeHTML(student.email || "")}</strong>. Delivery runs after a successful internship sync when email service is configured.`;
         } else {
             alertBadge.innerText = "Paused";
             alertBadge.style.background = "#fee2e2";
             alertBadge.style.color = "#991b1b";
-            alertText.innerText = "Email alerts are currently paused. You can enable them anytime by editing your profile.";
+            alertText.innerText = "Email alerts are paused. Enable them here to receive matching internship digests after a successful sync. Email service configuration is required for delivery.";
+        }
+        if (alertToggle) {
+            alertToggle.innerText = isAlertEnabled ? "Pause email alerts" : "Enable email alerts";
+            alertToggle.setAttribute("aria-pressed", String(isAlertEnabled));
         }
     }
+}
+
+async function toggleStudentEmailAlerts() {
+    const button = document.getElementById("toggleStudentEmailAlertsBtn");
+    const statusMessage = document.getElementById("emailAlertStatusMsg");
+    const user = firebase.apps.length ? firebase.auth().currentUser : null;
+    if (!button || !statusMessage) return;
+    if (!user || !currentStudent || currentStudent.status !== "approved") {
+        statusMessage.style.display = "block";
+        statusMessage.style.color = "#b91c1c";
+        statusMessage.innerText = "Sign in with an approved student account before changing email alert settings.";
+        return;
+    }
+
+    const enabled = currentStudent.emailAlertsEnabled !== true;
+    const updates = {
+        emailAlertsEnabled: enabled,
+        emailAlertFrequency: currentStudent.emailAlertFrequency || "daily",
+        emailAlertFilter: currentStudent.emailAlertFilter || "branch"
+    };
+    button.disabled = true;
+    statusMessage.style.display = "none";
+    try {
+        await firebase.database().ref(`students/${user.uid}`).update(updates);
+        currentStudent = { ...currentStudent, ...updates };
+        saveStudentSession(currentStudent);
+        updateStudentProfile();
+        statusMessage.style.display = "block";
+        statusMessage.style.color = "#15803d";
+        statusMessage.innerText = enabled
+            ? "Email alerts enabled. New matching digests are sent after a successful internship sync when SMTP email delivery is configured."
+            : "Email alerts paused. You can enable them again at any time.";
+    } catch (error) {
+        console.error("Could not update student email alert settings.", error);
+        statusMessage.style.display = "block";
+        statusMessage.style.color = "#b91c1c";
+        statusMessage.innerText = `Email alert settings could not be updated: ${getFirebaseErrorMessage(error)}`;
+    } finally {
+        button.disabled = false;
+    }
+}
+
+async function syncEmailAlertsFromFinder(enabled) {
+    if (!currentStudent) return;
+    const user = firebase.apps.length ? firebase.auth().currentUser : null;
+    if (!user) throw new Error("Sign in again before changing email alert settings.");
+
+    const updates = {
+        emailAlertsEnabled: enabled,
+        emailAlertFrequency: currentStudent.emailAlertFrequency || "daily",
+        emailAlertFilter: currentStudent.emailAlertFilter || "branch"
+    };
+    await firebase.database().ref(`students/${user.uid}`).update(updates);
+    currentStudent = { ...currentStudent, ...updates };
+    saveStudentSession(currentStudent);
+    updateStudentProfile();
 }
 
 function beginProfileEdit() {
@@ -512,7 +612,9 @@ function showRegistration() {
     document.getElementById("studentLoginForm").hidden = true;
     document.getElementById("studentRegistrationForm").hidden = false;
     document.getElementById("studentLoginMessage").innerText = "";
+    document.getElementById("registrationMessage").innerText = "";
     document.getElementById("authSubtitle").innerText = "Register first. The founder must approve your account.";
+    document.getElementById("registerName").focus();
 }
 
 function showStudentLogin() {
@@ -521,12 +623,14 @@ function showStudentLogin() {
     document.getElementById("authGate").hidden = false;
     document.getElementById("studentLoginForm").hidden = false;
     document.getElementById("studentRegistrationForm").hidden = true;
+    document.getElementById("registrationMessage").innerText = "";
     document.getElementById("authSubtitle").innerText = "Login with an approved student account.";
     const submitButton = document.querySelector("#studentLoginForm button[type='submit']");
     if (submitButton) {
         submitButton.disabled = false;
         submitButton.innerText = "Student Login";
     }
+    document.getElementById("studentLoginEmail").focus();
 }
 
 function togglePassword(inputId, toggleButton) {
@@ -635,6 +739,16 @@ async function registerStudent() {
         message.innerText = "Please fill in all registration fields.";
         return;
     }
+    if (password.length < 6) {
+        message.innerText = "Choose a password with at least 6 characters.";
+        document.getElementById("registerPassword").focus();
+        return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        message.innerText = "Enter a valid email address.";
+        document.getElementById("registerEmail").focus();
+        return;
+    }
 
     // Format validation
     const phoneDigits = phone.replace(/\D/g, "");
@@ -707,6 +821,7 @@ async function registerStudent() {
 
         await firebase.auth().signOut();
         registrationUser = null;
+        document.getElementById("studentRegistrationForm").reset();
         showStudentLogin();
         document.getElementById("studentLoginMessage").innerText =
             "Registration submitted successfully! Wait for founder approval before logging in.";
@@ -863,6 +978,7 @@ function refreshInternshipViews() {
     displaySavedInternships();
     displayAdminInternships();
     updateHomeStats();
+    if (document.getElementById("insights")?.classList.contains("active")) renderInsightsDashboard();
     if (typeof initAtsPage === "function") initAtsPage();
     if (typeof initCoverLetterPage === "function") initCoverLetterPage();
 }
@@ -1429,10 +1545,8 @@ function displayInternships() {
     const sortFilter = document.getElementById("filterSort")?.value || "india_first";
 
     let filtered = internships.filter(internship => {
-        // Search filter
         if (search) {
-            const skills = Array.isArray(internship.skills) ? internship.skills.join(" ") : "";
-            const matchedSearch = [
+            const searchableValues = [
                 internship.title,
                 internship.company,
                 internship.specialization,
@@ -1440,34 +1554,41 @@ function displayInternships() {
                 internship.branch,
                 internship.type,
                 isIndiaBasedListing(internship) ? "India" : "",
-                skills
-            ].some(value => String(value || "").toLowerCase().includes(search));
-            if (!matchedSearch) return false;
+                internship.stipend,
+                internship.duration,
+                ...(Array.isArray(internship.skills) ? internship.skills : [])
+            ].map(normalizeMatchText).filter(Boolean);
+            const searchTerms = normalizeMatchText(search).split(" ").filter(Boolean);
+            if (!searchTerms.every(term => searchableValues.some(value => value.includes(term)))) return false;
         }
 
-        // Work mode filter
-        if (workTypeFilter !== "all") {
-            const curType = String(internship.type || "").toLowerCase();
-            if (workTypeFilter.toLowerCase() !== curType) return false;
-        }
+        if (workTypeFilter !== "all" && getListingWorkType(internship) !== workTypeFilter) return false;
 
-        // Location filter
         if (locationFilter !== "all") {
             const isIndia = isIndiaBasedListing(internship);
-            const locText = String(internship.location || "").toLowerCase();
+            const locText = normalizeMatchText(internship.location);
             if (locationFilter === "india" && !isIndia) return false;
             if (locationFilter === "global" && isIndia) return false;
-            if (locationFilter === "remote" && !/remote|online|virtual|anywhere/.test(locText) && internship.type !== "Online") return false;
-            if (["bengaluru", "hyderabad", "pune", "mumbai", "delhi"].includes(locationFilter)) {
-                if (!locText.includes(locationFilter) && !locText.includes(locationFilter === "bengaluru" ? "bangalore" : "")) return false;
+            if (locationFilter === "remote" && getListingWorkType(internship) !== "Online") return false;
+            const cityTerms = {
+                bengaluru: ["bengaluru", "bangalore"],
+                hyderabad: ["hyderabad"],
+                pune: ["pune"],
+                mumbai: ["mumbai"],
+                delhi: ["delhi", "ncr", "gurgaon", "gurugram", "noida"]
+            }[locationFilter];
+            if (cityTerms && !cityTerms.some(city => locText.includes(city))) {
+                return false;
             }
         }
 
-        // Branch filter
         if (branchFilter !== "all") {
-            const branchText = String(internship.branch || "").toLowerCase();
-            const targetBranch = branchFilter.toLowerCase();
-            if (branchText !== "all branches" && !branchText.includes(targetBranch) && !String(internship.specialization || "").toLowerCase().includes(targetBranch)) {
+            const branchText = normalizeMatchText(internship.branch);
+            const targetBranch = normalizeMatchText(branchFilter);
+            const specializationText = normalizeMatchText(internship.specialization);
+            if (branchText !== "all branches" &&
+                !matchesStudyField(branchText, targetBranch) &&
+                !matchesStudyField(specializationText, targetBranch)) {
                 return false;
             }
         }
@@ -1489,6 +1610,7 @@ function displayInternships() {
     const statusText = document.getElementById("filterStatusText");
     if (statusText) {
         statusText.innerText = `Showing ${filtered.length} of ${internships.length} opportunities`;
+        statusText.setAttribute("aria-live", "polite");
     }
 
     if (cardRevealObserver) {
@@ -1570,71 +1692,73 @@ function selectType(type) {
    FIND MATCHES
 ========================================================= */
 function findMatches() {
-    const branch = document.getElementById("branch").value;
-    const specialization = document.getElementById("specialization").value;
-    const skills = document.getElementById("skills").value.toLowerCase();
-    const location = document.getElementById("location").value.toLowerCase();
-    const userSkills = [...new Set(skills.split(",").map(skill => skill.trim()).filter(Boolean))];
+    const branch = document.getElementById("branch").value.trim();
+    const specialization = document.getElementById("specialization").value.trim();
+    const location = document.getElementById("location").value.trim();
+    const userSkills = [...new Set(document.getElementById("skills").value
+        .split(",")
+        .map(skill => skill.trim())
+        .filter(Boolean))];
+    const locationTerms = location.split(/\s*(?:[,;/]|\bor\b)\s*/i).map(normalizeMatchText).filter(Boolean);
+    const skillWeight = userSkills.length ? 20 : 0;
+    const maxScore = (branch ? 25 : 0) + (specialization ? 25 : 0) +
+        (locationTerms.length ? 10 : 0) + skillWeight;
 
-    let results = internships.map(internship => {
-        let score = 0;
-        if (internship.type === selectedType) score += 35;
-        if (branch && String(internship.branch || "").toLowerCase() === branch.toLowerCase()) score += 25;
-        if (specialization && String(internship.specialization || "").toLowerCase() === specialization.toLowerCase()) score += 30;
-        if (location && String(internship.location || "").toLowerCase().includes(location)) score += 10;
+    const results = internships
+        .filter(internship => getListingWorkType(internship) === selectedType)
+        .map(internship => {
+        let points = 0;
+        const listingBranch = normalizeMatchText(internship.branch);
+        if (branch && (
+            listingBranch === "all branches" ||
+            matchesStudyField(listingBranch, branch) ||
+            matchesStudyField(internship.specialization, branch)
+        )) points += 25;
+        if (specialization && (
+            matchesStudyField(internship.specialization, specialization)
+        )) points += 25;
 
-        const internshipSkills = Array.isArray(internship.skills)
-            ? internship.skills.map(skill => String(skill).trim().toLowerCase())
-            : [];
-        userSkills.forEach(skill => {
-            if (internshipSkills.includes(skill.toLowerCase())) score += 5;
-        });
-        return { ...internship, score: Math.min(score, 100) };
-    });
+        const listingLocation = normalizeMatchText(internship.location);
+        if (listingLocation && locationTerms.some(term => listingLocation.includes(term) || term.includes(listingLocation))) points += 10;
 
-    results.sort((a, b) =>
-        Number(isIndiaBasedListing(b)) - Number(isIndiaBasedListing(a)) || b.score - a.score
+        const listingSkills = Array.isArray(internship.skills) ? internship.skills : [];
+        const matchedSkills = userSkills.filter(skill => listingSkills.some(listingSkill => matchesSkill(listingSkill, skill)));
+        if (userSkills.length) points += skillWeight * matchedSkills.length / userSkills.length;
+
+        return { ...internship, score: maxScore ? Math.round((points / maxScore) * 100) : 100 };
+    }).filter(internship => internship.score > 0);
+
+    results.sort((left, right) =>
+        right.score - left.score ||
+        Number(isIndiaBasedListing(right)) - Number(isIndiaBasedListing(left)) ||
+        String(right.postedDate || "").localeCompare(String(left.postedDate || ""))
     );
 
     const container = document.getElementById("resultsContainer");
-    let html = "";
-    results.forEach(internship => {
-        const safeId = escapeInlineString(internship.id);
-        const tags = [
-            hasPublishedValue(internship.specialization) && internship.specialization !== "General"
-                ? `<span class="tag">${escapeHTML(internship.specialization)}</span>` : "",
-            hasPublishedValue(internship.type) ? `<span class="tag">${escapeHTML(internship.type)}</span>` : "",
-            isIndiaBasedListing(internship) ? "<span class=\"tag india-tag\">India</span>" : ""
-        ].filter(Boolean).join("");
-        const details = [
-            ["📍", internship.location],
-            ["💰", internship.stipend],
-            ["⏱️", internship.duration]
-        ].filter(([, value]) => hasPublishedValue(value));
-        html += `
-            <div class="card">
-                <div class="card-top">
-                    <div class="company-logo">🤖</div>
-                    <strong style="color:#16a34a">${internship.score}% Match</strong>
-                </div>
-                <h3>${escapeHTML(internship.title)}</h3>
-                <div class="company">${escapeHTML(internship.company)}</div>
-                ${tags ? `<div class="tags">${tags}</div>` : ""}
-                <div class="details">
-                    ${details.map(([icon, value]) => `<div>${icon} ${escapeHTML(value)}</div>`).join("")}
-                </div>
-                <div class="card-actions">
-                    <button class="secondary-btn" onclick="showDetails(${safeId})">Details</button>
-                    <button class="small-primary" onclick="apply(${safeId})">Apply</button>
-                </div>
-            </div>
-        `;
-    });
-    container.innerHTML = html;
+    container.innerHTML = results.length
+        ? results.map(internship => createCard(internship).replace(
+            '<div class="card-top">',
+            `<div class="card-top"><span class="match-score" aria-label="${internship.score} percent match">${internship.score}% match</span>`
+        )).join("")
+        : "<p class=\"company match-empty\">No internships match your selected work mode and preferences yet. Try another location, skill, or work mode.</p>";
+    initializeInternshipCardEffects(container);
 
-    document.getElementById("resultMessage").innerText =
-        `We found ${results.length} internships based on your preferences.`;
+    const resultMessage = document.getElementById("resultMessage");
+    resultMessage.innerText = results.length
+        ? `We found ${results.length} relevant ${results.length === 1 ? "internship" : "internships"}, ranked by how well they match your preferences.`
+        : internships.length
+            ? "No current listings match those preferences. Try broadening your search or choosing the other work mode."
+            : "No current internships are available yet. Please check back after the next feed update.";
     showPage("results");
+
+    const alertsEnabled = document.getElementById("prefEmailAlerts")?.checked;
+    if (currentStudent && typeof alertsEnabled === "boolean" &&
+        currentStudent.emailAlertsEnabled !== alertsEnabled) {
+        syncEmailAlertsFromFinder(alertsEnabled).catch(error => {
+            console.error("Email alert preference could not be saved from internship matching.", error);
+            resultMessage.innerText += " Your recommendations are ready, but the email alert setting could not be saved. Update it in My Profile and try again.";
+        });
+    }
 }
 
 /* =========================================================
@@ -2112,7 +2236,9 @@ async function restoreFirebaseSession(user) {
         document.body.classList.remove("founder-login");
         const gate = document.getElementById("authGate");
         if (gate) gate.hidden = false;
-        showStudentLogin();
+        if (document.getElementById("studentRegistrationForm")?.hidden !== false) {
+            showStudentLogin();
+        }
         return;
     }
 
@@ -2779,7 +2905,7 @@ function renderInsightsSkillResults() {
     const selectedSkill = activeInsightsSkill.toLowerCase();
     const matches = internships.filter(internship =>
         Array.isArray(internship.skills) &&
-        internship.skills.some(skill => String(skill).trim().toLowerCase() === selectedSkill)
+        internship.skills.some(skill => matchesSkill(skill, selectedSkill))
     );
 
     panel.hidden = false;
@@ -2789,6 +2915,7 @@ function renderInsightsSkillResults() {
     container.innerHTML = matches.length
         ? matches.map(createCard).join("")
         : "<p class=\"company\">Try another skill or check back when more internships are available.</p>";
+    initializeInternshipCardEffects(container);
     document.querySelectorAll("#topSkillsCloud .skill-pill").forEach(button => {
         const isSelected = button.dataset.skill?.toLowerCase() === selectedSkill;
         button.setAttribute("aria-pressed", String(isSelected));
@@ -2809,7 +2936,7 @@ function clearInsightsSkillFilter() {
 function renderInsightsDashboard() {
     const totalRoles = internships.length;
     const indiaRoles = internships.filter(isIndiaBasedListing).length;
-    const remoteRoles = internships.filter(i => i.type === "Online" || /remote|virtual|online/i.test(i.location || "")).length;
+    const remoteRoles = internships.filter(i => getListingWorkType(i) === "Online").length;
     const configuredBoardsEl = document.getElementById("configuredJobBoardsCount");
     const boardsCount = configuredBoardsEl ? configuredBoardsEl.innerText : "46";
 
@@ -2824,18 +2951,21 @@ function renderInsightsDashboard() {
     if (elBoards) elBoards.innerText = String(boardsCount);
 
     // 2. Top Hiring Companies Leaderboard
-    const companyCounts = {};
+    const companyCounts = new Map();
     internships.forEach(i => {
-        const c = String(i.company || "Other").trim();
-        if (c && c.toLowerCase() !== "unknown" && c.toLowerCase() !== "not specified") {
-            companyCounts[c] = (companyCounts[c] || 0) + 1;
-        }
+        const company = String(i.company || "").trim();
+        if (!company || ["unknown", "not specified"].includes(company.toLowerCase())) return;
+        const key = normalizeMatchText(company);
+        const existing = companyCounts.get(key);
+        companyCounts.set(key, { label: existing?.label || company, count: (existing?.count || 0) + 1 });
     });
-    const sortedCompanies = Object.entries(companyCounts).sort((a, b) => b[1] - a[1]).slice(0, 6);
-    const maxComp = sortedCompanies[0]?.[1] || 1;
+    const sortedCompanies = [...companyCounts.values()]
+        .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label))
+        .slice(0, 6);
+    const maxComp = sortedCompanies[0]?.count || 1;
     const companiesContainer = document.getElementById("topCompaniesList");
     if (companiesContainer) {
-        companiesContainer.innerHTML = sortedCompanies.map(([name, count], index) => {
+        companiesContainer.innerHTML = sortedCompanies.map(({ label: name, count }, index) => {
             const pct = Math.round((count / (totalRoles || 1)) * 100);
             return `
                 <div class="analytics-bar-item">
@@ -2852,21 +2982,28 @@ function renderInsightsDashboard() {
     }
 
     // 3. Most In-Demand Skills with Interactive Search
-    const skillCounts = {};
+    const skillCounts = new Map();
     internships.forEach(i => {
         if (Array.isArray(i.skills)) {
-            i.skills.forEach(s => {
-                const clean = String(s).trim();
-                if (clean && clean.length > 1 && !["not specified", "unknown", "n/a"].includes(clean.toLowerCase())) {
-                    skillCounts[clean] = (skillCounts[clean] || 0) + 1;
+            const skillsInListing = new Set();
+            i.skills.forEach(skill => {
+                const clean = String(skill).trim();
+                const normalized = normalizeMatchText(clean);
+                if (normalized.length && !["not specified", "unknown", "n a"].includes(normalized)) {
+                    if (skillsInListing.has(normalized)) return;
+                    skillsInListing.add(normalized);
+                    if (!skillCounts.has(normalized)) skillCounts.set(normalized, { label: clean, count: 0 });
+                    skillCounts.get(normalized).count += 1;
                 }
             });
         }
     });
-    const sortedSkills = Object.entries(skillCounts).sort((a, b) => b[1] - a[1]).slice(0, 14);
+    const sortedSkills = [...skillCounts.values()]
+        .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label))
+        .slice(0, 14);
     const skillsCloud = document.getElementById("topSkillsCloud");
     if (skillsCloud) {
-        skillsCloud.innerHTML = sortedSkills.map(([skill, count]) => {
+        skillsCloud.innerHTML = sortedSkills.map(({ label: skill, count }) => {
             const safeSkill = escapeInlineString(skill);
             const isSelected = skill.toLowerCase() === activeInsightsSkill.toLowerCase();
             return `
@@ -2887,10 +3024,12 @@ function renderInsightsDashboard() {
         ["Pune", /\bpune\b/i],
         ["Mumbai", /\bmumbai\b/i],
         ["Chennai", /\bchennai\b/i],
-        ["Remote (India / Global)", /\b(remote|online|virtual|anywhere)\b/i]
+        ["Remote (India)", /\b(remote|online|virtual|anywhere|work from home)\b/i]
     ];
     const hubCounts = hubNames.map(([label, pattern]) => {
-        const count = internships.filter(i => pattern.test(i.location || "")).length;
+        const count = internships.filter(i =>
+            isIndiaBasedListing(i) && pattern.test(i.location || "")
+        ).length;
         return [label, count];
     }).sort((a, b) => b[1] - a[1]);
     const maxHub = Math.max(...hubCounts.map(h => h[1]), 1);
@@ -2910,25 +3049,31 @@ function renderInsightsDashboard() {
     }
 
     // 5. Work Arrangement Breakdown with Rich Multi-Color Bars
-    const online = internships.filter(i => i.type === "Online" || /remote|virtual|online/i.test(i.location || "")).length;
-    const offline = internships.filter(i => i.type === "Offline" && !/remote|virtual|online/i.test(i.location || "")).length;
-    const hybrid = internships.filter(i => i.type === "Hybrid").length;
+    const online = internships.filter(i => getListingWorkType(i) === "Online").length;
+    const offline = internships.filter(i => getListingWorkType(i) === "Offline").length;
+    const hybrid = internships.filter(i => getListingWorkType(i) === "Hybrid").length;
+    const unspecified = Math.max(totalRoles - online - offline - hybrid, 0);
     const breakdownContainer = document.getElementById("workModeBreakdown");
     if (breakdownContainer) {
-        const total = totalRoles || 1;
+        const total = totalRoles;
+        const percentage = count => total ? Math.round((count / total) * 100) : 0;
         breakdownContainer.innerHTML = `
             <div class="analytics-bar-item">
-                <div class="analytics-bar-label"><span>🌐 Online / Remote (${Math.round((online/total)*100)}%)</span><strong>${online} roles</strong></div>
-                <div class="analytics-bar-track"><div class="analytics-bar-fill" style="width:${Math.round((online/total)*100)}%"></div></div>
+                <div class="analytics-bar-label"><span>🌐 Online / Remote (${percentage(online)}%)</span><strong>${online} roles</strong></div>
+                <div class="analytics-bar-track"><div class="analytics-bar-fill" style="width:${percentage(online)}%"></div></div>
             </div>
             <div class="analytics-bar-item">
-                <div class="analytics-bar-label"><span>🏢 In-Person / Onsite (${Math.round((offline/total)*100)}%)</span><strong>${offline} roles</strong></div>
-                <div class="analytics-bar-track"><div class="analytics-bar-fill" style="width:${Math.round((offline/total)*100)}%;background:#f59e0b;"></div></div>
+                <div class="analytics-bar-label"><span>🏢 In-Person / Onsite (${percentage(offline)}%)</span><strong>${offline} roles</strong></div>
+                <div class="analytics-bar-track"><div class="analytics-bar-fill" style="width:${percentage(offline)}%;background:#f59e0b;"></div></div>
             </div>
             <div class="analytics-bar-item">
-                <div class="analytics-bar-label"><span>🔄 Hybrid (${Math.round((hybrid/total)*100)}%)</span><strong>${hybrid} roles</strong></div>
-                <div class="analytics-bar-track"><div class="analytics-bar-fill" style="width:${Math.round((hybrid/total)*100)}%;background:#6366f1;"></div></div>
+                <div class="analytics-bar-label"><span>🔄 Hybrid (${percentage(hybrid)}%)</span><strong>${hybrid} roles</strong></div>
+                <div class="analytics-bar-track"><div class="analytics-bar-fill" style="width:${percentage(hybrid)}%;background:#6366f1;"></div></div>
             </div>
+            ${unspecified ? `<div class="analytics-bar-item">
+                <div class="analytics-bar-label"><span>◌ Work mode not listed (${percentage(unspecified)}%)</span><strong>${unspecified} roles</strong></div>
+                <div class="analytics-bar-track"><div class="analytics-bar-fill" style="width:${percentage(unspecified)}%;background:#94a3b8;"></div></div>
+            </div>` : ""}
         `;
     }
 }
@@ -4120,6 +4265,7 @@ Object.assign(window, {
     returnToStudentLogin,
     renderInsightsDashboard,
     renderTrackerPage,
+    toggleStudentEmailAlerts,
     revokeStudentApproval,
     selectSkillSearch,
     clearInsightsSkillFilter,
