@@ -1836,6 +1836,7 @@ function bookmark(id) {
     displaySavedInternships();
     displayFeatured();
     displayInternships();
+    if (activeInsightsSkill) renderInsightsSkillResults();
 }
 
 function updateSavedCount() {
@@ -2726,15 +2727,49 @@ function getTrackerStatusClass(status) {
    FEATURE 1: STATS & INSIGHTS DASHBOARD (EXECUTIVE TELEMETRY)
 ========================================================= */
 function selectSkillSearch(skillName) {
-    if (!skillName) return;
-    showPage("home");
-    const searchInput = document.getElementById("searchInput");
-    if (searchInput) {
-        searchInput.value = skillName;
-        displayInternships();
-        const section = document.getElementById("home");
-        if (section) section.scrollIntoView({ behavior: "smooth" });
-    }
+    activeInsightsSkill = String(skillName || "").trim();
+    if (!activeInsightsSkill) return;
+    renderInsightsSkillResults();
+    const results = document.getElementById("insightsSkillResults");
+    if (results) results.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+let activeInsightsSkill = "";
+
+function renderInsightsSkillResults() {
+    const panel = document.getElementById("insightsSkillResults");
+    const summary = document.getElementById("insightsSkillResultSummary");
+    const container = document.getElementById("insightsSkillResultsContainer");
+    if (!panel || !summary || !container || !activeInsightsSkill) return;
+
+    const selectedSkill = activeInsightsSkill.toLowerCase();
+    const matches = internships.filter(internship =>
+        Array.isArray(internship.skills) &&
+        internship.skills.some(skill => String(skill).trim().toLowerCase() === selectedSkill)
+    );
+
+    panel.hidden = false;
+    summary.textContent = matches.length
+        ? `${matches.length} ${matches.length === 1 ? "internship" : "internships"} require ${activeInsightsSkill}.`
+        : `No current internships list ${activeInsightsSkill}.`;
+    container.innerHTML = matches.length
+        ? matches.map(createCard).join("")
+        : "<p class=\"company\">Try another skill or check back when more internships are available.</p>";
+    document.querySelectorAll("#topSkillsCloud .skill-pill").forEach(button => {
+        const isSelected = button.dataset.skill?.toLowerCase() === selectedSkill;
+        button.setAttribute("aria-pressed", String(isSelected));
+    });
+}
+
+function clearInsightsSkillFilter() {
+    activeInsightsSkill = "";
+    const panel = document.getElementById("insightsSkillResults");
+    const container = document.getElementById("insightsSkillResultsContainer");
+    if (panel) panel.hidden = true;
+    if (container) container.replaceChildren();
+    document.querySelectorAll("#topSkillsCloud .skill-pill").forEach(button => {
+        button.setAttribute("aria-pressed", "false");
+    });
 }
 
 function renderInsightsDashboard() {
@@ -2799,14 +2834,16 @@ function renderInsightsDashboard() {
     if (skillsCloud) {
         skillsCloud.innerHTML = sortedSkills.map(([skill, count]) => {
             const safeSkill = escapeInlineString(skill);
+            const isSelected = skill.toLowerCase() === activeInsightsSkill.toLowerCase();
             return `
-                <button type="button" class="skill-pill" onclick='selectSkillSearch(${safeSkill})' title="Filter internships requiring ${escapeHTML(skill)}">
+                <button type="button" class="skill-pill" data-skill="${escapeHTML(skill)}" aria-pressed="${isSelected}" onclick='selectSkillSearch(${safeSkill})' title="Show internships requiring ${escapeHTML(skill)}">
                     ${escapeHTML(skill)}
                     <span class="skill-pill-count">${count}</span>
                 </button>
             `;
         }).join("") || "<p class='company'>No skill tags available.</p>";
     }
+    if (activeInsightsSkill) renderInsightsSkillResults();
 
     // 4. Top Locations in India with Smarter Pattern Matching
     const hubNames = [
@@ -4051,6 +4088,7 @@ Object.assign(window, {
     renderTrackerPage,
     revokeStudentApproval,
     selectSkillSearch,
+    clearInsightsSkillFilter,
     selectType,
     showDetails,
     showPage,
