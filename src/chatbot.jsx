@@ -503,11 +503,10 @@ function Chatbot() {
                 type="button"
                 aria-label={isOpen ? "Close InternMatch Help Desk" : "Open InternMatch Help Desk"}
                 aria-expanded={isOpen}
-                title={isOpen ? "Close Help Desk" : "Open Help Desk"}
+                title={isOpen ? "Close InternMatch assistant" : "Open InternMatch assistant"}
                 onClick={() => isOpen ? closeHelpDesk() : setIsOpen(true)}
             >
                 <BotAvatar type="clover" size={48} state={isBusy ? "working" : "default"} shading="crisp" interactive={false} seed={0.37} theme={theme} />
-                <span className="chat-launcher-label">Help</span>
             </button>
         </div>
     );

@@ -99,7 +99,6 @@
         <button class="nav-btn" onclick="showPage('favorites')">Saved <span id="savedCount">0</span></button>
         <button class="nav-btn" onclick="showPage('tracker')">Tracker</button>
         <button class="nav-btn" onclick="showPage('insights')">Insights</button>
-        <button class="nav-btn" type="button" onclick="window.dispatchEvent(new CustomEvent('internmatch:open-helpdesk'))">Help Desk</button>
         <button class="nav-btn" onclick="showPage('profile')">My Profile</button>
         <button class="nav-btn logout-nav-btn" onclick="studentLogout()">Logout</button>
     </div>
@@ -1189,6 +1188,12 @@
     <strong>InternMatch</strong>
     <br><br>
     Helping students and graduates find better internships.
+    <div class="footer-assistant">
+        <span>Need a hand using InternMatch?</span>
+        <button class="footer-assistant-btn" type="button" onclick="window.dispatchEvent(new CustomEvent('internmatch:open-helpdesk'))">
+            Chat with the InternMatch assistant
+        </button>
+    </div>
     <br><br>
     © 2026 InternMatch — Student Project
 </footer>

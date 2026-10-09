@@ -38,20 +38,6 @@
     box-shadow: 0 8px 22px rgba(23, 59, 57, .3);
 }
 
-.chat-launcher-label {
-    position: absolute;
-    right: -7px;
-    bottom: -5px;
-    padding: 3px 8px;
-    border: 2px solid white;
-    border-radius: 999px;
-    background: #e87c61;
-    color: #fff;
-    font-size: 10px;
-    font-weight: 800;
-    letter-spacing: .04em;
-}
-
 .chat-panel {
     position: absolute;
     right: 0;
