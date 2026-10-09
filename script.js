@@ -853,6 +853,7 @@ async function registerStudent() {
             branch,
             rollNumber,
             status: "pending",
+            emailVerificationRequired: true,
             registeredAt: Date.now()
         });
         profileSaved = true;
@@ -935,20 +936,20 @@ async function studentLogin() {
         updateLoaderText("Signing you in...");
         const credential = await firebase.auth().signInWithEmailAndPassword(email, password);
 
-        if (!credential.user.emailVerified) {
+        updateLoaderText("Verifying approval...");
+        const snapshot = await firebase.database().ref(`students/${credential.user.uid}`).once("value");
+        const student = snapshot.val();
+
+        if (student?.emailVerificationRequired === true && !credential.user.emailVerified) {
             await firebase.auth().signOut();
             hideLoader();
-            message.innerText = "Please verify your email using the signup link before signing in.";
+            message.innerText = "Please verify your email using the link sent during signup.";
             if (submitButton) {
                 submitButton.disabled = false;
                 submitButton.innerText = "Student Login";
             }
             return;
         }
-
-        updateLoaderText("Verifying approval...");
-        const snapshot = await firebase.database().ref(`students/${credential.user.uid}`).once("value");
-        const student = snapshot.val();
 
         if (!student || student.status !== "approved") {
             await firebase.auth().signOut();
@@ -2399,7 +2400,7 @@ async function restoreFirebaseSession(user) {
 
         const studentSnapshot = await firebase.database().ref(`students/${user.uid}`).once("value");
         const student = studentSnapshot.val();
-        if (!user.emailVerified) {
+        if (student?.emailVerificationRequired === true && !user.emailVerified) {
             clearStudentSession();
             await firebase.auth().signOut();
             document.body.classList.add("auth-locked");

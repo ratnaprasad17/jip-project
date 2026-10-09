@@ -27,7 +27,7 @@ This project was built as a student project at **Sri Vasavi Engineering College*
 - 🔎 **Live search and filters** by title, employer, skill, location, work mode and branch, with sorting and reset controls
 - 📊 **Insights dashboard** for active roles, employers, skills, India hiring locations and work arrangements, including skill-to-listing drill-down
 - 📧 **Opt-in email alerts** for new internships, changes to saved roles, and application stages changed in Tracker; requires SMTP configuration
-- ✉️ **Email verification** for new student accounts, followed by administrator approval
+- ✉️ **Email verification** for newly registered student accounts only; existing accounts continue to sign in as before
 - 🎯 **Personalised matching** based on:
   - Internship type (Online / Offline)
   - Branch and specialization

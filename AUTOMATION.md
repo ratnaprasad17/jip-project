@@ -81,7 +81,7 @@ Email delivery requires a real SMTP account. Without it, the workflow records de
 - `SMTP_PASS`
 - `SMTP_FROM` (optional; defaults to `SMTP_USER`)
 
-The existing Firebase Authentication email-verification link is sent during registration. A student must verify the address and then receive administrator approval before signing in. This is a secure one-time verification link rather than a numeric OTP; sending a numeric OTP would require a separately deployed interactive authentication backend.
+The Firebase Authentication email-verification link is sent during registration for new student accounts only. Existing student accounts remain exempt and continue to use the same sign-in flow as before. Newly registered students must verify the address and receive administrator approval before signing in. This is a secure one-time verification link rather than a numeric OTP; sending a numeric OTP would require a separately deployed interactive authentication backend.
 
 The workflow is `.github/workflows/sync.yml`. It uses Node 22 because that is the Functions package's existing supported engine, `npm ci` against the lockfile, and runs importer tests before syncing. The UTC cron `45 21 * * *` is **03:15 IST the following day**. GitHub scheduled runs can be delayed and run from the repository's default branch; use **Actions** → **Sync Internships** → **Run workflow** for an immediate test.
 
