@@ -1507,6 +1507,7 @@ function displayInternships() {
 ========================================================= */
 function createCard(internship) {
     const safeId = escapeInlineString(internship.id);
+    const isSaved = bookmarks.some(bookmarkId => String(bookmarkId) === String(internship.id));
     const isApplied = trackedApplications.some(a => String(a.internshipId) === String(internship.id) && a.status === "Applied");
     const tags = [
         hasPublishedValue(internship.specialization) && internship.specialization !== "General"
@@ -1520,16 +1521,17 @@ function createCard(internship) {
         ["⏱️", internship.duration]
     ].filter(([, value]) => hasPublishedValue(value));
     return `
-        <div class="card ${isApplied ? "card-applied" : ""}">
+        <div class="card ${isApplied ? "card-applied" : ""}" data-internship-id="${escapeHTML(internship.id)}">
             <div class="card-top">
                 <div style="display:flex;align-items:center;gap:6px;">
                     <div class="company-logo">💼</div>
                     ${isApplied ? `<span class="status-badge status-applied" style="font-size:11px;padding:2px 7px;">✓ Applied</span>` : ""}
                 </div>
                 <button class="bookmark" type="button" onclick="bookmark(${safeId})"
-                        title="Save internship" aria-label="${bookmarks.some(bookmarkId => String(bookmarkId) === String(internship.id)) ? "Remove" : "Save"} ${escapeHTML(internship.title)}"
-                        aria-pressed="${bookmarks.some(bookmarkId => String(bookmarkId) === String(internship.id))}">
-                    ${bookmarks.some(bookmarkId => String(bookmarkId) === String(internship.id)) ? "♥" : "♡"}
+                        title="${isSaved ? "Remove" : "Save"} internship"
+                        aria-label="${isSaved ? "Remove" : "Save"} ${escapeHTML(internship.title)}"
+                        aria-pressed="${isSaved}">
+                    ${isSaved ? "♥" : "♡"}
                 </button>
             </div>
             <h3>${escapeHTML(internship.title)}</h3>
@@ -1826,17 +1828,49 @@ function confirmApplicationInProgress() {
    BOOKMARK
 ========================================================= */
 function bookmark(id) {
-    if (bookmarks.some(bookmarkId => String(bookmarkId) === String(id))) {
+    const isSaved = bookmarks.some(bookmarkId => String(bookmarkId) === String(id));
+    if (isSaved) {
         bookmarks = bookmarks.filter(bookmarkId => String(bookmarkId) !== String(id));
     }
     else bookmarks.push(id);
     localStorage.setItem("bookmarks", JSON.stringify(bookmarks));
     publishInternshipUpdates();
     updateSavedCount();
-    displaySavedInternships();
-    displayFeatured();
-    displayInternships();
-    if (activeInsightsSkill) renderInsightsSkillResults();
+    updateBookmarkButtons(id, !isSaved);
+    updateSavedInternshipCard(id, !isSaved);
+}
+
+function updateBookmarkButtons(id, isSaved) {
+    document.querySelectorAll(".card[data-internship-id]").forEach(card => {
+        if (card.dataset.internshipId !== String(id)) return;
+        const button = card.querySelector(".bookmark");
+        if (!button) return;
+        button.setAttribute("aria-pressed", String(isSaved));
+        button.setAttribute("aria-label", `${isSaved ? "Remove" : "Save"} ${card.querySelector("h3")?.textContent || "internship"}`);
+        button.title = `${isSaved ? "Remove" : "Save"} internship`;
+        button.textContent = isSaved ? "♥" : "♡";
+    });
+}
+
+function updateSavedInternshipCard(id, isSaved) {
+    const container = document.getElementById("savedInternshipContainer");
+    if (!container || document.getElementById("favorites")?.classList.contains("active") !== true) return;
+
+    const existingCard = [...container.querySelectorAll(".card[data-internship-id]")]
+        .find(card => card.dataset.internshipId === String(id));
+    if (isSaved && !existingCard) {
+        const internship = findInternshipById(id);
+        if (!internship) return;
+        [...container.children].find(child => child.classList.contains("company"))?.remove();
+        container.insertAdjacentHTML("beforeend", createCard(internship));
+        initializeInternshipCardEffects(container);
+    } else if (!isSaved && existingCard) {
+        existingCard.remove();
+    }
+
+    if (!container.querySelector(".card")) {
+        container.innerHTML = "<p class=\"company\">No saved internships yet. Use the heart on a listing to save it here.</p>";
+    }
 }
 
 function updateSavedCount() {
