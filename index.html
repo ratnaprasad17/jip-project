@@ -62,7 +62,6 @@
             </label>
             <button class="primary-btn full-width" type="submit">Student Login</button>
             <p class="auth-message" id="studentLoginMessage" role="status" aria-live="polite"></p>
-            <button class="auth-link" id="resendVerificationButton" type="button" onclick="resendStudentVerification()" hidden>Resend verification email</button>
             <button class="auth-link" type="button" onclick="resetStudentPassword()">Forgot password?</button>
             <button class="auth-link" type="button" onclick="showRegistration()">New student? Register here</button>
             <br>
@@ -83,6 +82,7 @@
             <div style="font-size:11px;color:#64748b;margin-top:6px;line-height:1.4;">🔒 Verify your email from the link we send. New accounts also need administrator approval.</div>
             <button class="primary-btn full-width" type="submit">Submit Registration</button>
             <p class="auth-message" id="registrationMessage" role="status" aria-live="polite"></p>
+            <button class="auth-link" id="resendSignupVerificationButton" type="button" onclick="resendSignupVerification()" hidden>Resend signup verification email</button>
             <button class="auth-link" type="button" onclick="showStudentLogin()">Back to student login</button>
         </form>
     </div>

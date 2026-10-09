@@ -648,7 +648,7 @@ function showRegistration() {
     document.getElementById("studentLoginForm").hidden = true;
     document.getElementById("studentRegistrationForm").hidden = false;
     document.getElementById("studentLoginMessage").innerText = "";
-    document.getElementById("resendVerificationButton").hidden = true;
+    document.getElementById("resendSignupVerificationButton").hidden = true;
     document.getElementById("registrationMessage").innerText = "";
     document.getElementById("authSubtitle").innerText = "Register, verify your email, and wait for administrator approval.";
     document.getElementById("registerName").focus();
@@ -660,7 +660,7 @@ function showStudentLogin() {
     document.getElementById("authGate").hidden = false;
     document.getElementById("studentLoginForm").hidden = false;
     document.getElementById("studentRegistrationForm").hidden = true;
-    document.getElementById("resendVerificationButton").hidden = true;
+    document.getElementById("resendSignupVerificationButton").hidden = true;
     document.getElementById("registrationMessage").innerText = "";
     document.getElementById("authSubtitle").innerText = "Login with an approved student account.";
     const submitButton = document.querySelector("#studentLoginForm button[type='submit']");
@@ -896,10 +896,9 @@ async function registerStudent() {
                 }
                 registrationUser = null;
             }
-            showStudentLogin();
-            document.getElementById("studentLoginMessage").innerText =
-                "Your account was created, but email verification did not complete. Check your inbox or sign in to request another verification email.";
-            document.getElementById("resendVerificationButton").hidden = false;
+            document.getElementById("registrationMessage").innerText =
+                "Your account was created, but the signup verification email could not be sent. Check your details and use the button below to try again.";
+            document.getElementById("resendSignupVerificationButton").hidden = false;
         } else {
             message.innerText = error.code === "auth/email-already-in-use"
                 ? `❌ The email "${email}" is already registered! Please sign in or use 'Forgot password'.`
@@ -925,6 +924,7 @@ async function studentLogin() {
     }
 
     try {
+        document.getElementById("resendSignupVerificationButton").hidden = true;
         if (!isFirebaseConfigured()) throw new Error("Firebase is not configured yet.");
 
         showLoader("Checking your account...");
@@ -938,8 +938,7 @@ async function studentLogin() {
         if (!credential.user.emailVerified) {
             await firebase.auth().signOut();
             hideLoader();
-            message.innerText = "Verify your email using the link sent during registration before signing in.";
-            document.getElementById("resendVerificationButton").hidden = false;
+            message.innerText = "Please verify your email using the signup link before signing in.";
             if (submitButton) {
                 submitButton.disabled = false;
                 submitButton.innerText = "Student Login";
@@ -989,13 +988,14 @@ async function studentLogin() {
     }
 }
 
-async function resendStudentVerification() {
-    const email = document.getElementById("studentLoginEmail").value.trim().toLowerCase();
-    const password = document.getElementById("studentLoginPassword").value;
-    const message = document.getElementById("studentLoginMessage");
+async function resendSignupVerification() {
+    const email = document.getElementById("registerEmail").value.trim().toLowerCase();
+    const password = document.getElementById("registerPassword").value;
+    const message = document.getElementById("registrationMessage");
+    const button = document.getElementById("resendSignupVerificationButton");
     if (!email || !password) {
-        message.innerText = "Enter your registration email and password before requesting another verification email.";
-        document.getElementById("studentLoginEmail").focus();
+        message.innerText = "Enter the signup email and password before requesting another verification email.";
+        document.getElementById(!email ? "registerEmail" : "registerPassword").focus();
         return;
     }
 
@@ -1003,15 +1003,23 @@ async function resendStudentVerification() {
         ensureFirebase();
         const credential = await firebase.auth().signInWithEmailAndPassword(email, password);
         if (credential.user.emailVerified) {
-            message.innerText = "Your email is already verified. Sign in again.";
+            message.innerText = "Your signup email is already verified. You can sign in now.";
+            button.hidden = true;
         } else {
             await credential.user.sendEmailVerification();
-            message.innerText = "A new verification email has been sent. Check your inbox and spam folder.";
+            message.innerText = "A new signup verification email has been sent. Check your inbox and spam folder.";
         }
-        await firebase.auth().signOut();
     } catch (error) {
-        console.error("Could not resend the student verification email.", error);
-        message.innerText = `Verification email could not be sent: ${getFirebaseErrorMessage(error)}`;
+        console.error("Could not resend the signup verification email.", error);
+        message.innerText = `Signup verification email could not be sent: ${getFirebaseErrorMessage(error)}`;
+    } finally {
+        if (firebase.apps.length && firebase.auth().currentUser) {
+            try {
+                await firebase.auth().signOut();
+            } catch (error) {
+                console.error("Could not sign out after resending signup verification.", error);
+            }
+        }
     }
 }
 
@@ -2398,9 +2406,6 @@ async function restoreFirebaseSession(user) {
             const gate = document.getElementById("authGate");
             if (gate) gate.hidden = false;
             showStudentLogin();
-            document.getElementById("studentLoginMessage").innerText =
-                "Verify your email using the link sent during registration before signing in.";
-            document.getElementById("resendVerificationButton").hidden = false;
             hideLoader();
             return;
         }
@@ -4363,7 +4368,7 @@ Object.assign(window, {
     openFounderLogin,
     rejectStudent,
     registerStudent,
-    resendStudentVerification,
+    resendSignupVerification,
     removeViewedInternship,
     resetStudentPassword,
     returnToStudentLogin,
