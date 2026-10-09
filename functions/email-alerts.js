@@ -49,6 +49,105 @@ function findNewInternships(previousInternships, currentInternships) {
         .filter(item => !existingIds.has(String(item.id || `${item._sourceKey || ""}:${item._sourceId || ""}`)));
 }
 
+const TRACKED_INTERNSHIP_FIELDS = [
+    ["title", "role title"],
+    ["company", "company"],
+    ["location", "location"],
+    ["type", "work mode"],
+    ["branch", "eligible branch"],
+    ["specialization", "field"],
+    ["stipend", "stipend"],
+    ["duration", "duration"],
+    ["closingDate", "closing date"],
+    ["skills", "skills"],
+    ["link", "application link"]
+];
+
+function getInternshipId(internship) {
+    return String(internship.id || `${internship._sourceKey || ""}:${internship._sourceId || ""}`);
+}
+
+function findChangedInternships(previousInternships, currentInternships) {
+    const previousById = new Map((Array.isArray(previousInternships) ? previousInternships : [])
+        .map(internship => [getInternshipId(internship), internship]));
+    const currentById = new Map((Array.isArray(currentInternships) ? currentInternships : [])
+        .map(internship => [getInternshipId(internship), internship]));
+    const changes = [];
+
+    for (const [id, current] of currentById) {
+        const previous = previousById.get(id);
+        if (!previous) continue;
+        const changedFields = TRACKED_INTERNSHIP_FIELDS
+            .filter(([field]) => JSON.stringify(previous[field] ?? null) !== JSON.stringify(current[field] ?? null))
+            .map(([, label]) => label);
+        if (changedFields.length) changes.push({ ...current, changedFields, updateType: "updated" });
+    }
+
+    for (const [id, previous] of previousById) {
+        if (!currentById.has(id)) {
+            changes.push({
+                ...previous,
+                changedFields: ["no longer listed in the latest employer feed"],
+                updateType: "removed"
+            });
+        }
+    }
+    return changes;
+}
+
+function getEmailAlertPreferences(student) {
+    const preferences = student.emailAlertPreferences;
+    if (preferences && typeof preferences === "object") {
+        return {
+            newInternships: preferences.newInternships === true,
+            savedInternshipUpdates: preferences.savedInternshipUpdates === true,
+            applicationStageUpdates: preferences.applicationStageUpdates === true
+        };
+    }
+    return {
+        newInternships: student.emailAlertsEnabled === true,
+        savedInternshipUpdates: false,
+        applicationStageUpdates: false
+    };
+}
+
+function getApplicationStageSnapshot(studentsData) {
+    return Object.fromEntries(Object.entries(studentsData || {}).map(([uid, student]) => {
+        const applications = Array.isArray(student.applications) ? student.applications : [];
+        const stages = Object.fromEntries(applications
+            .filter(application => application && application.id !== undefined && application.status)
+            .map(application => [String(application.id), String(application.status)]));
+        return [uid, stages];
+    }));
+}
+
+function findApplicationStageChanges(previousSnapshot, currentSnapshot, studentsData) {
+    const changesByStudent = {};
+    for (const [uid, currentStages] of Object.entries(currentSnapshot || {})) {
+        const previousStages = previousSnapshot?.[uid] || {};
+        const student = studentsData?.[uid];
+        const applications = Array.isArray(student?.applications) ? student.applications : [];
+        for (const application of applications) {
+            if (!application || application.id === undefined || !application.status) continue;
+            const appId = String(application.id);
+            const oldStatus = previousStages[appId];
+            const newStatus = String(application.status);
+            if (oldStatus === newStatus) continue;
+            if (oldStatus === undefined && ["In Progress", "Saved"].includes(newStatus)) continue;
+            if (!changesByStudent[uid]) changesByStudent[uid] = [];
+            changesByStudent[uid].push({
+                applicationId: appId,
+                title: String(application.title || "Tracked internship"),
+                company: String(application.company || "Company"),
+                previousStatus: oldStatus || "New application tracked",
+                newStatus,
+                link: application.link || ""
+            });
+        }
+    }
+    return changesByStudent;
+}
+
 /**
  * Normalizes string for fuzzy keyword comparison.
  */
@@ -280,6 +379,118 @@ function generateInternshipDigestHtml({ student, matches, portalUrl = "https://i
     `;
 }
 
+function generateStudentEventEmailHtml({ student, sections, portalUrl = "https://ratnaprasad17.github.io/jip-project/" }) {
+    const safePortalUrl = escapeHtml(getSafeHttpsUrl(portalUrl, "https://ratnaprasad17.github.io/jip-project/"));
+    const sectionHtml = sections.map(section => {
+        const items = section.items.map(item => {
+            const title = escapeHtml(item.title || item.role || "Internship update");
+            const company = escapeHtml(item.company || "InternMatch");
+            const description = escapeHtml(item.description || "");
+            const link = getSafeHttpsUrl(item.link || item.applyUrl, safePortalUrl);
+            return `<li style="margin:0 0 12px;"><strong>${title}</strong> — ${company}${description ? `<br><span>${description}</span>` : ""}<br><a href="${escapeHtml(link)}" style="color:#0f766e;">View details</a></li>`;
+        }).join("");
+        return `<h2 style="font-size:17px;color:#0f766e;margin:22px 0 10px;">${escapeHtml(section.title)}</h2><ul style="padding-left:20px;margin:0;">${items}</ul>`;
+    }).join("");
+    const name = escapeHtml(student.name || "Student");
+    return `<!doctype html><html><body style="margin:0;background:#f1f5f9;font-family:Arial,sans-serif;color:#1e293b;"><main style="max-width:640px;margin:24px auto;padding:24px;background:#fff;border-radius:14px;"><h1 style="margin:0;color:#0f766e;font-size:22px;">InternMatch updates</h1><p>Hello ${name},</p><p>Here are the email updates you selected:</p>${sectionHtml}<p style="margin-top:28px;"><a href="${safePortalUrl}" style="display:inline-block;padding:11px 16px;background:#0f766e;color:#fff;text-decoration:none;border-radius:8px;">Open InternMatch</a></p><p style="margin-top:24px;color:#64748b;font-size:12px;">Manage or pause these notifications in My Profile. Employer application decisions are not available through InternMatch.</p></main></body></html>`;
+}
+
+async function dispatchStudentEventAlerts(database, events, options = {}) {
+    const environment = options.env || process.env;
+    const studentsData = options.studentsData || (await database.ref("students").once("value")).val() || {};
+    const newInternships = Array.isArray(events.newInternships) ? events.newInternships : [];
+    const changedInternships = Array.isArray(events.changedInternships) ? events.changedInternships : [];
+    const stageChangesByStudent = events.applicationStageChanges || {};
+    const recipients = Object.entries(studentsData).filter(([, student]) =>
+        student.status === "approved" && typeof student.email === "string" && student.email.includes("@")
+    );
+    let transporter = options.transporter;
+    let sentCount = 0;
+    let errorCount = 0;
+    const errors = [];
+    const stageAlertSentUids = [];
+
+    for (const [uid, student] of recipients) {
+        const preferences = getEmailAlertPreferences(student);
+        const savedIds = new Set([
+            ...(Array.isArray(student.savedInternshipIds) ? student.savedInternshipIds : []),
+            ...(Array.isArray(student.applications)
+                ? student.applications.filter(application => application?.status === "Saved").map(application => application.internshipId)
+                : [])
+        ].filter(id => id !== undefined && id !== null).map(String));
+        const savedUpdates = changedInternships.filter(internship => savedIds.has(String(internship.id)));
+        const stageChanges = preferences.applicationStageUpdates ? (stageChangesByStudent[uid] || []) : [];
+        const sections = [];
+
+        if (preferences.newInternships && newInternships.length) {
+            sections.push({
+                title: "New internships added",
+                items: newInternships.map(internship => ({ ...internship, description: "A new internship was added to the catalog." }))
+            });
+        }
+        if (preferences.savedInternshipUpdates && savedUpdates.length) {
+            sections.push({
+                title: "Updates to internships you saved",
+                items: savedUpdates.map(internship => ({
+                    ...internship,
+                    description: internship.updateType === "removed"
+                        ? "This internship is no longer listed in the latest employer feed."
+                        : `Updated: ${(internship.changedFields || []).join(", ")}.`
+                }))
+            });
+        }
+        if (stageChanges.length) {
+            sections.push({
+                title: "Application tracker stage changes",
+                items: stageChanges.map(change => ({
+                    ...change,
+                    title: change.title,
+                    description: `You changed your tracker stage from ${change.previousStatus} to ${change.newStatus}.`
+                }))
+            });
+        }
+        if (!sections.length) continue;
+
+        try {
+            if (!transporter) transporter = await createMailTransporter(environment);
+            await transporter.sendMail({
+                from: environment.SMTP_FROM || environment.SMTP_USER,
+                to: student.email,
+                subject: "Your InternMatch email updates",
+                html: generateStudentEventEmailHtml({ student, sections, portalUrl: options.portalUrl || environment.PORTAL_URL })
+            });
+            sentCount++;
+            if (stageChanges.length) stageAlertSentUids.push(uid);
+        } catch (error) {
+            errorCount++;
+            errors.push({ uid, error: error.message });
+            console.error(`[EmailAlerts] Event update failed for student ${uid}:`, error.message);
+        }
+    }
+
+    const report = {
+        totalStudents: recipients.length,
+        sentCount,
+        errorCount,
+        errors,
+        stageAlertSentUids,
+        status: "completed"
+    };
+    if (sentCount || errorCount) {
+        await database.ref("email_alerts_log").push({
+            timestamp: new Date().toISOString(),
+            totalSubscribers: recipients.length,
+            sentCount,
+            errorCount,
+            newInternshipCount: newInternships.length,
+            changedInternshipCount: changedInternships.length,
+            applicationStageChangeCount: Object.values(stageChangesByStudent).reduce((sum, changes) => sum + changes.length, 0)
+        });
+    }
+    console.log(`[EmailAlerts] Event dispatch completed: ${sentCount} sent, ${errorCount} errors.`);
+    return report;
+}
+
 /**
  * Dispatches email alerts to all approved and subscribed students.
  * Logs execution in Firebase Realtime Database metadata.
@@ -373,6 +584,12 @@ async function dispatchInternshipEmailAlerts(database, newInternships, options =
 module.exports = {
     createMailTransporter,
     findNewInternships,
+    findChangedInternships,
+    getEmailAlertPreferences,
+    getApplicationStageSnapshot,
+    findApplicationStageChanges,
+    generateStudentEventEmailHtml,
+    dispatchStudentEventAlerts,
     findMatchingInternshipsForStudent,
     generateInternshipDigestHtml,
     dispatchInternshipEmailAlerts

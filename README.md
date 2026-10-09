@@ -23,10 +23,11 @@ This project was built as a student project at **Sri Vasavi Engineering College*
 - 🔑 Forgot password and show/hide password options
 - ☼ Persistent light/dark appearance, initialized from the device preference
 - 🔥 **Featured and latest internships** on the home page
-- 💬 **English-language Help Desk** on the login screen and throughout the site for listings, registration, applications, email alerts, Insights and career tools
+- 💬 **English-language assistant** available after sign-in from the site footer and floating bot for listings, applications, email alerts, Insights and career tools
 - 🔎 **Live search and filters** by title, employer, skill, location, work mode and branch, with sorting and reset controls
 - 📊 **Insights dashboard** for active roles, employers, skills, India hiring locations and work arrangements, including skill-to-listing drill-down
-- 📧 **Opt-in email alerts** managed in My Profile; delivery runs after a successful catalog sync and requires administrator-configured SMTP
+- 📧 **Opt-in email alerts** for new internships, changes to saved roles, and application stages changed in Tracker; requires SMTP configuration
+- ✉️ **Email verification** for new student accounts, followed by administrator approval
 - 🎯 **Personalised matching** based on:
   - Internship type (Online / Offline)
   - Branch and specialization

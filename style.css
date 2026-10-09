@@ -21,16 +21,18 @@ body {
 
 /* Guest state (Not logged in) */
 html.is-guest body {
-    overflow-x: hidden;
-    overflow-y: auto;
+    overflow: hidden;
 }
-html.is-guest body > *:not(#authGate):not(#loadingOverlay):not(#chatbot-root):not(footer) {
+html.is-guest body > *:not(#authGate):not(#loadingOverlay) {
     display: none !important;
 }
 html.is-guest #authGate {
     display: flex !important;
 }
 html.is-guest #theme-toggle-root {
+    display: none !important;
+}
+html.is-guest #chatbot-root {
     display: none !important;
 }
 html.is-guest:not(.showing-loader) #loadingOverlay {
@@ -42,12 +44,9 @@ html.is-authenticated #authGate {
     display: none !important;
 }
 
-body.auth-locked {
-    overflow-x: hidden;
-    overflow-y: auto;
-}
+body.auth-locked { overflow: hidden; }
 
-body.auth-locked > *:not(#authGate):not(#loadingOverlay):not(#chatbot-root):not(footer),
+body.auth-locked > *:not(#authGate):not(#loadingOverlay),
 body.founder-login > *:not(#admin):not(#loadingOverlay) {
     display: none !important;
 }
@@ -56,6 +55,7 @@ body.auth-locked #authGate {
 }
 body.auth-locked #theme-toggle-root,
 body.founder-login:has(#adminLoginPanel:not([hidden])) #theme-toggle-root { display: none !important; }
+body.auth-locked #chatbot-root { display: none !important; }
 
 body.founder-login #admin {
     display: block !important;
@@ -79,13 +79,13 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 ========================================================= */
 #authGate {
     width: 100%;
-    height: auto;
+    height: 100dvh;
     min-height: 100dvh;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 14px;
-    overflow: visible;
+    overflow: hidden;
     background:
         linear-gradient(rgba(15, 23, 42, .68), rgba(15, 23, 42, .74)),
         url("./ssri%20vasavi.jpeg") center center / cover;
@@ -296,6 +296,25 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .profile-edit-field textarea {
     min-height: 80px;
     resize: vertical;
+}
+.email-alert-preferences {
+    display: grid;
+    gap: 10px;
+    margin-top: 8px;
+}
+.email-alert-preferences label {
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+    margin: 0;
+    font-weight: 500;
+}
+.email-alert-preferences input[type="checkbox"] {
+    width: 17px;
+    min-height: 17px;
+    margin: 1px 0 0;
+    accent-color: #0f766e;
+    flex: 0 0 auto;
 }
 .profile-social-link {
     display: inline-flex;

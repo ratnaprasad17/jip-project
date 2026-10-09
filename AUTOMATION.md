@@ -71,7 +71,9 @@ The browser rules remain important for student/admin access. The GitHub importer
 
 ### Configure email alerts (optional)
 
-The scheduled sync sends alerts only to students who explicitly enable them in their profile. Email delivery requires a real SMTP account; without it, the sync reports a clear configuration error in the workflow logs instead of reporting simulated emails as sent. Add these optional GitHub Actions repository secrets to enable delivery:
+The scheduled sync sends only the event types each student selects in My Profile: newly added internships, changes/removal of saved internships, and application-stage changes made by the student in Tracker. Saved internship IDs are synced to the student's Realtime Database record so the importer can detect updates. Employer-side application decisions are private and cannot be queried by this site. Alerts are processed after the scheduled sync (currently once daily), not in real time.
+
+Email delivery requires a real SMTP account. Without it, the workflow records delivery errors rather than reporting simulated emails as sent. Add these optional GitHub Actions repository secrets to enable delivery:
 
 - `SMTP_HOST`
 - `SMTP_PORT` (usually `587`, or `465` for implicit TLS)
@@ -79,7 +81,7 @@ The scheduled sync sends alerts only to students who explicitly enable them in t
 - `SMTP_PASS`
 - `SMTP_FROM` (optional; defaults to `SMTP_USER`)
 
-Alerts are generated only for newly added internship listings. Weekly subscribers receive mail on Mondays (India time); daily and instant subscribers receive alerts when the scheduled sync adds matching listings. The manual browser dispatch and test-email controls do not send mail; email must be delivered from the scheduled server workflow.
+The existing Firebase Authentication email-verification link is sent during registration. A student must verify the address and then receive administrator approval before signing in. This is a secure one-time verification link rather than a numeric OTP; sending a numeric OTP would require a separately deployed interactive authentication backend.
 
 The workflow is `.github/workflows/sync.yml`. It uses Node 22 because that is the Functions package's existing supported engine, `npm ci` against the lockfile, and runs importer tests before syncing. The UTC cron `45 21 * * *` is **03:15 IST the following day**. GitHub scheduled runs can be delayed and run from the repository's default branch; use **Actions** → **Sync Internships** → **Run workflow** for an immediate test.
 

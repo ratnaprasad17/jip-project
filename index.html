@@ -49,7 +49,7 @@
     <div class="auth-card">
         <img src="vasavi-logo.jpg" alt="Sri Vasavi Engineering College" class="auth-logo-img">
         <h1>InternMatch</h1>
-        <p id="authSubtitle">Login with an approved student account.</p>
+        <p id="authSubtitle">Sign in with your email-verified, administrator-approved student account.</p>
 
         <form id="studentLoginForm" onsubmit="event.preventDefault(); studentLogin();">
             <label>Email
@@ -62,6 +62,7 @@
             </label>
             <button class="primary-btn full-width" type="submit">Student Login</button>
             <p class="auth-message" id="studentLoginMessage" role="status" aria-live="polite"></p>
+            <button class="auth-link" id="resendVerificationButton" type="button" onclick="resendStudentVerification()" hidden>Resend verification email</button>
             <button class="auth-link" type="button" onclick="resetStudentPassword()">Forgot password?</button>
             <button class="auth-link" type="button" onclick="showRegistration()">New student? Register here</button>
             <br>
@@ -79,7 +80,7 @@
                 <button class="password-toggle" type="button" aria-label="Show password" title="Show password"
                         onclick="togglePassword('registerPassword', this)">&#128065;</button>
             </label>
-            <div style="font-size:11px;color:#64748b;margin-top:6px;line-height:1.4;">🔒 Email, phone number, and roll number are checked to prevent duplicate accounts. New accounts need founder approval.</div>
+            <div style="font-size:11px;color:#64748b;margin-top:6px;line-height:1.4;">🔒 Verify your email from the link we send. New accounts also need administrator approval.</div>
             <button class="primary-btn full-width" type="submit">Submit Registration</button>
             <p class="auth-message" id="registrationMessage" role="status" aria-live="polite"></p>
             <button class="auth-link" type="button" onclick="showStudentLogin()">Back to student login</button>
@@ -96,9 +97,9 @@
     <div class="nav-buttons">
         <button class="nav-btn" onclick="showPage('home')">Home</button>
         <button class="nav-btn" onclick="showPage('preferences')">Find Internship</button>
-        <button class="nav-btn" onclick="showPage('favorites')">Saved <span id="savedCount">0</span></button>
         <button class="nav-btn" onclick="showPage('tracker')">Tracker</button>
         <button class="nav-btn" onclick="showPage('insights')">Insights</button>
+        <button class="nav-btn" onclick="showPage('favorites')">Saved <span id="savedCount">0</span></button>
         <button class="nav-btn" onclick="showPage('profile')">My Profile</button>
         <button class="nav-btn logout-nav-btn" onclick="studentLogout()">Logout</button>
     </div>
@@ -235,27 +236,13 @@
                 <div class="profile-edit-field"><label for="profilePortfolioInput">Portfolio / Resume Link</label><input id="profilePortfolioInput" type="url" placeholder="https://yourportfolio.dev or Drive link" maxlength="200"></div>
                 <div class="profile-edit-field" style="grid-column: 1 / -1;"><label for="profileBioInput">About Me / Career Objective</label><textarea id="profileBioInput" rows="3" placeholder="Briefly introduce your career aspirations, key strengths, and what internship roles you are seeking..." maxlength="500"></textarea></div>
                 <div class="profile-edit-field" style="grid-column: 1 / -1; background:#f0fdfa; padding:14px; border-radius:10px; border:1px solid #99f6e4;">
-                    <label style="display:flex; align-items:center; gap:8px; cursor:pointer; margin-bottom:10px; color:#0f766e;">
-                        <input id="profileEmailAlertsInput" type="checkbox" style="width:auto; min-height:auto;">
-                        <span><strong>Enable Internship Email Alerts</strong> (Sent directly to your email address)</span>
-                    </label>
-                    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:10px; margin-top:8px;">
-                        <div>
-                            <label for="profileEmailFreqInput" style="font-size:12px; font-weight:600; margin-bottom:4px;">Alert Frequency</label>
-                            <select id="profileEmailFreqInput">
-                                <option value="instant">⚡ Instant (When new batch is synced)</option>
-                                <option value="daily" selected>📅 Daily Digest (Recommended)</option>
-                                <option value="weekly">📆 Weekly Summary</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label for="profileEmailFilterInput" style="font-size:12px; font-weight:600; margin-bottom:4px;">Filter Criteria</label>
-                            <select id="profileEmailFilterInput">
-                                <option value="branch" selected>🎯 Matching My Branch Only</option>
-                                <option value="all">🌐 All Verified Openings</option>
-                            </select>
-                        </div>
+                    <strong style="display:block; margin-bottom:10px; color:#0f766e;">Choose the email updates you want</strong>
+                    <div class="email-alert-preferences">
+                        <label><input id="emailAlertNewInternships" type="checkbox"> <span>New internships added to InternMatch</span></label>
+                        <label><input id="emailAlertSavedUpdates" type="checkbox"> <span>Updates to internships I saved</span></label>
+                        <label><input id="emailAlertApplicationStages" type="checkbox"> <span>Changes I make to my application stages</span></label>
                     </div>
+                    <p style="margin:8px 0 0; font-size:12px; color:#64748b;">Emails are sent after the scheduled catalog sync when the site SMTP service is configured. InternMatch cannot access employers’ private application decisions.</p>
                 </div>
             </div>
             <div class="profile-edit-actions">
@@ -273,19 +260,13 @@
                         <span class="badge" id="profileAlertStatusBadge" style="background:#dcfce7; color:#15803d; font-size:11px; padding:3px 10px; margin:0;">Active</span>
                     </h3>
                     <p style="margin:0; font-size:13px; color:#64748b;" id="profileAlertStatusText">
-                        Receive customized digests of newly posted internships matching your branch.
+                        Choose which internship and tracker changes should trigger email updates.
                     </p>
                 </div>
             </div>
             <div class="profile-alerts-actions" style="display:flex; gap:10px; margin-top:14px; flex-wrap:wrap;">
                 <button class="small-primary" type="button" id="toggleStudentEmailAlertsBtn" aria-pressed="false" onclick="toggleStudentEmailAlerts()" style="font-size:13px; padding:8px 14px;">
-                    Enable email alerts
-                </button>
-                <button class="secondary-btn" type="button" onclick="previewStudentEmailAlert()" style="font-size:13px; padding:8px 14px;">
-                    👀 Preview My Email Alert
-                </button>
-                <button class="small-primary" type="button" onclick="sendTestEmailAlert()" id="sendTestEmailBtn" style="font-size:13px; padding:8px 14px;">
-                    📨 Test Email (SMTP Required)
+                    Enable all email alerts
                 </button>
             </div>
             <div id="emailAlertStatusMsg" style="font-size:12.5px; margin-top:10px; display:none;" role="status"></div>
@@ -377,10 +358,7 @@
         </div>
 
         <div class="form-group" style="background:#f0fdfa; padding:12px 14px; border-radius:10px; border:1px solid #99f6e4;">
-            <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-weight:normal; margin:0; font-size:13px; color:#0f766e;">
-                <input type="checkbox" id="prefEmailAlerts" checked style="width:auto; min-height:auto;">
-                <span><strong>Send Email Alerts:</strong> Use the alert frequency and filter saved in My Profile. Email delivery requires the site email service.</span>
-            </label>
+            <span style="font-size:13px; color:#0f766e;"><strong>Email updates:</strong> Choose new-role, saved-role, and application-stage alerts in My Profile.</span>
         </div>
 
         <button class="primary-btn full-width" onclick="findMatches()">🔍 Find My Internships</button>

@@ -207,9 +207,55 @@ function findInternshipById(id) {
 }
 
 function saveStudentSession(student) {
-    currentStudent = student;
+    let canMigrateLegacyBookmarks = false;
     try {
-        localStorage.setItem("studentSession", JSON.stringify(student));
+        const previousStudent = JSON.parse(localStorage.getItem("studentSession") || "null");
+        canMigrateLegacyBookmarks = Boolean(
+            previousStudent?.email &&
+            previousStudent.email.toLowerCase() === String(student.email || "").toLowerCase()
+        );
+    } catch (error) {
+        console.warn("The previous student session could not be checked for saved-role migration.", error);
+    }
+    const uid = firebase.apps.length ? firebase.auth().currentUser?.uid : undefined;
+    let bookmarkOwner = "";
+    try {
+        bookmarkOwner = localStorage.getItem("legacyBookmarksOwner") || "";
+    } catch (error) {
+        console.warn("Saved-role ownership could not be checked.", error);
+    }
+    let trackerOwner = "";
+    try {
+        trackerOwner = localStorage.getItem("trackerOwner") || "";
+    } catch (error) {
+        console.warn("Application tracker ownership could not be checked.", error);
+    }
+    if (bookmarkOwner !== uid && !canMigrateLegacyBookmarks) {
+        bookmarks = [];
+        try {
+            localStorage.setItem("bookmarks", JSON.stringify(bookmarks));
+        } catch (error) {
+            console.warn("Saved roles could not be cleared from local storage.", error);
+        }
+    }
+    if (uid && trackerOwner !== uid && !canMigrateLegacyBookmarks) {
+        trackedApplications = [];
+        viewedInternships = [];
+        try {
+            localStorage.setItem("trackedApplications", JSON.stringify(trackedApplications));
+            localStorage.setItem("viewedInternships", JSON.stringify(viewedInternships));
+        } catch (error) {
+            console.warn("Previous application tracker data could not be cleared from local storage.", error);
+        }
+    }
+    currentStudent = {
+        ...student,
+        uid
+    };
+    try {
+        localStorage.setItem("studentSession", JSON.stringify(currentStudent));
+        if (canMigrateLegacyBookmarks) localStorage.setItem("legacyBookmarksOwner", currentStudent.uid || "");
+        if (uid) localStorage.setItem("trackerOwner", uid);
         document.documentElement.classList.remove("is-guest");
         document.documentElement.classList.add("is-authenticated");
     } catch (error) {
@@ -221,9 +267,12 @@ function clearStudentSession() {
     currentStudent = null;
     try {
         localStorage.removeItem("studentSession");
+        localStorage.removeItem("legacyBookmarksOwner");
         document.documentElement.classList.remove("is-authenticated");
         document.documentElement.classList.add("is-guest");
-    } catch (error) {}
+    } catch (error) {
+        console.warn("Could not clear the local student session.", error);
+    }
 }
 
 function updateStudentProfile() {
@@ -282,31 +331,27 @@ function updateStudentProfile() {
     const alertBadge = document.getElementById("profileAlertStatusBadge");
     const alertText = document.getElementById("profileAlertStatusText");
     const alertToggle = document.getElementById("toggleStudentEmailAlertsBtn");
-    const preferencesAlertToggle = document.getElementById("prefEmailAlerts");
-    if (preferencesAlertToggle) {
-        preferencesAlertToggle.checked = student.emailAlertsEnabled === true;
-    }
+    const alertPreferences = student.emailAlertPreferences || {
+        newInternships: student.emailAlertsEnabled === true,
+        savedInternshipUpdates: false,
+        applicationStageUpdates: false
+    };
+    const enabledAlertCount = Object.values(alertPreferences).filter(Boolean).length;
     if (alertsCard && alertBadge && alertText) {
-        const isAlertEnabled = student.emailAlertsEnabled === true;
-        const freq = student.emailAlertFrequency || "daily";
-        const filterType = student.emailAlertFilter || "branch";
-        const freqText = freq === "instant" ? "Instant" : freq === "weekly" ? "Weekly Summary" : "Daily Digest";
-        const filterText = filterType === "all" ? "all verified openings" : `opportunities matching ${student.branch || "your branch"}`;
-
-        if (isAlertEnabled) {
-            alertBadge.innerText = `Active (${freqText})`;
+        if (enabledAlertCount > 0) {
+            alertBadge.innerText = `${enabledAlertCount} alert type${enabledAlertCount === 1 ? "" : "s"} active`;
             alertBadge.style.background = "#dcfce7";
             alertBadge.style.color = "#15803d";
-            alertText.innerHTML = `Enabled for ${escapeHTML(filterText)} sent to <strong>${escapeHTML(student.email || "")}</strong>. Delivery runs after a successful internship sync when email service is configured.`;
+            alertText.innerHTML = `Selected updates will be sent to <strong>${escapeHTML(student.email || "")}</strong> after the scheduled sync.`;
         } else {
             alertBadge.innerText = "Paused";
             alertBadge.style.background = "#fee2e2";
             alertBadge.style.color = "#991b1b";
-            alertText.innerText = "Email alerts are paused. Enable them here to receive matching internship digests after a successful sync. Email service configuration is required for delivery.";
+            alertText.innerText = "All email updates are paused. Choose the alerts you want in Edit Profile.";
         }
         if (alertToggle) {
-            alertToggle.innerText = isAlertEnabled ? "Pause email alerts" : "Enable email alerts";
-            alertToggle.setAttribute("aria-pressed", String(isAlertEnabled));
+            alertToggle.innerText = enabledAlertCount > 0 ? "Pause all email alerts" : "Enable all email alerts";
+            alertToggle.setAttribute("aria-pressed", String(enabledAlertCount > 0));
         }
     }
 }
@@ -324,10 +369,14 @@ async function toggleStudentEmailAlerts() {
     }
 
     const enabled = currentStudent.emailAlertsEnabled !== true;
+    const preferences = {
+        newInternships: enabled,
+        savedInternshipUpdates: enabled,
+        applicationStageUpdates: enabled
+    };
     const updates = {
         emailAlertsEnabled: enabled,
-        emailAlertFrequency: currentStudent.emailAlertFrequency || "daily",
-        emailAlertFilter: currentStudent.emailAlertFilter || "branch"
+        emailAlertPreferences: preferences
     };
     button.disabled = true;
     statusMessage.style.display = "none";
@@ -339,8 +388,8 @@ async function toggleStudentEmailAlerts() {
         statusMessage.style.display = "block";
         statusMessage.style.color = "#15803d";
         statusMessage.innerText = enabled
-            ? "Email alerts enabled. New matching digests are sent after a successful internship sync when SMTP email delivery is configured."
-            : "Email alerts paused. You can enable them again at any time.";
+            ? "All three email update types are enabled. Messages are sent after a successful scheduled sync when SMTP delivery is configured."
+            : "All email updates are paused. You can select individual alert types in Edit Profile.";
     } catch (error) {
         console.error("Could not update student email alert settings.", error);
         statusMessage.style.display = "block";
@@ -349,22 +398,6 @@ async function toggleStudentEmailAlerts() {
     } finally {
         button.disabled = false;
     }
-}
-
-async function syncEmailAlertsFromFinder(enabled) {
-    if (!currentStudent) return;
-    const user = firebase.apps.length ? firebase.auth().currentUser : null;
-    if (!user) throw new Error("Sign in again before changing email alert settings.");
-
-    const updates = {
-        emailAlertsEnabled: enabled,
-        emailAlertFrequency: currentStudent.emailAlertFrequency || "daily",
-        emailAlertFilter: currentStudent.emailAlertFilter || "branch"
-    };
-    await firebase.database().ref(`students/${user.uid}`).update(updates);
-    currentStudent = { ...currentStudent, ...updates };
-    saveStudentSession(currentStudent);
-    updateStudentProfile();
 }
 
 function beginProfileEdit() {
@@ -390,15 +423,14 @@ function beginProfileEdit() {
     document.getElementById("profilePortfolioInput").value = currentStudent.portfolio || "";
     document.getElementById("profileBioInput").value = currentStudent.bio || "";
 
-    if (document.getElementById("profileEmailAlertsInput")) {
-        document.getElementById("profileEmailAlertsInput").checked = currentStudent.emailAlertsEnabled === true;
-    }
-    if (document.getElementById("profileEmailFreqInput")) {
-        document.getElementById("profileEmailFreqInput").value = currentStudent.emailAlertFrequency || "daily";
-    }
-    if (document.getElementById("profileEmailFilterInput")) {
-        document.getElementById("profileEmailFilterInput").value = currentStudent.emailAlertFilter || "branch";
-    }
+    const alertPreferences = currentStudent.emailAlertPreferences || {
+        newInternships: currentStudent.emailAlertsEnabled === true,
+        savedInternshipUpdates: false,
+        applicationStageUpdates: false
+    };
+    document.getElementById("emailAlertNewInternships").checked = alertPreferences.newInternships === true;
+    document.getElementById("emailAlertSavedUpdates").checked = alertPreferences.savedInternshipUpdates === true;
+    document.getElementById("emailAlertApplicationStages").checked = alertPreferences.applicationStageUpdates === true;
 
     document.getElementById("profileDetails").hidden = true;
     document.getElementById("profileEditToggle").hidden = true;
@@ -423,6 +455,11 @@ async function saveStudentProfile(event) {
         return;
     }
 
+    const emailAlertPreferences = {
+        newInternships: document.getElementById("emailAlertNewInternships").checked,
+        savedInternshipUpdates: document.getElementById("emailAlertSavedUpdates").checked,
+        applicationStageUpdates: document.getElementById("emailAlertApplicationStages").checked
+    };
     const updates = {
         name: document.getElementById("profileNameInput").value.trim(),
         phone: document.getElementById("profilePhoneInput").value.trim(),
@@ -439,10 +476,9 @@ async function saveStudentProfile(event) {
         github: document.getElementById("profileGithubInput").value.trim(),
         portfolio: document.getElementById("profilePortfolioInput").value.trim(),
         bio: document.getElementById("profileBioInput").value.trim(),
-        emailAlertsEnabled: document.getElementById("profileEmailAlertsInput") ? document.getElementById("profileEmailAlertsInput").checked : false,
-        emailAlertFrequency: document.getElementById("profileEmailFreqInput")?.value || "daily",
-        emailAlertFilter: document.getElementById("profileEmailFilterInput")?.value || "branch"
+        emailAlertPreferences
     };
+    updates.emailAlertsEnabled = Object.values(emailAlertPreferences).some(Boolean);
     if (!updates.name) return;
 
     saveButton.disabled = true;
@@ -612,8 +648,9 @@ function showRegistration() {
     document.getElementById("studentLoginForm").hidden = true;
     document.getElementById("studentRegistrationForm").hidden = false;
     document.getElementById("studentLoginMessage").innerText = "";
+    document.getElementById("resendVerificationButton").hidden = true;
     document.getElementById("registrationMessage").innerText = "";
-    document.getElementById("authSubtitle").innerText = "Register first. The founder must approve your account.";
+    document.getElementById("authSubtitle").innerText = "Register, verify your email, and wait for administrator approval.";
     document.getElementById("registerName").focus();
 }
 
@@ -623,6 +660,7 @@ function showStudentLogin() {
     document.getElementById("authGate").hidden = false;
     document.getElementById("studentLoginForm").hidden = false;
     document.getElementById("studentRegistrationForm").hidden = true;
+    document.getElementById("resendVerificationButton").hidden = true;
     document.getElementById("registrationMessage").innerText = "";
     document.getElementById("authSubtitle").innerText = "Login with an approved student account.";
     const submitButton = document.querySelector("#studentLoginForm button[type='submit']");
@@ -819,12 +857,13 @@ async function registerStudent() {
         });
         profileSaved = true;
 
+        await registrationUser.sendEmailVerification();
         await firebase.auth().signOut();
         registrationUser = null;
         document.getElementById("studentRegistrationForm").reset();
         showStudentLogin();
         document.getElementById("studentLoginMessage").innerText =
-            "Registration submitted successfully! Wait for founder approval before logging in.";
+            "Registration submitted. Verify your email using the link we sent, then wait for administrator approval before signing in.";
     } catch (error) {
         if (registrationUser && !profileSaved) {
             for (const indexRef of reservedIndices) {
@@ -848,6 +887,19 @@ async function registerStudent() {
             message.innerText = `❌ Mobile number "${phone}" is already associated with another student account.`;
         } else if (error.code === "registration/duplicate-index") {
             message.innerText = "❌ The roll number or phone number was just registered by another account. Please verify your details.";
+        } else if (profileSaved) {
+            if (registrationUser && firebase.auth().currentUser) {
+                try {
+                    await firebase.auth().signOut();
+                } catch (signOutError) {
+                    console.error("The new student account could not be signed out after registration.", signOutError);
+                }
+                registrationUser = null;
+            }
+            showStudentLogin();
+            document.getElementById("studentLoginMessage").innerText =
+                "Your account was created, but email verification did not complete. Check your inbox or sign in to request another verification email.";
+            document.getElementById("resendVerificationButton").hidden = false;
         } else {
             message.innerText = error.code === "auth/email-already-in-use"
                 ? `❌ The email "${email}" is already registered! Please sign in or use 'Forgot password'.`
@@ -882,6 +934,18 @@ async function studentLogin() {
 
         updateLoaderText("Signing you in...");
         const credential = await firebase.auth().signInWithEmailAndPassword(email, password);
+
+        if (!credential.user.emailVerified) {
+            await firebase.auth().signOut();
+            hideLoader();
+            message.innerText = "Verify your email using the link sent during registration before signing in.";
+            document.getElementById("resendVerificationButton").hidden = false;
+            if (submitButton) {
+                submitButton.disabled = false;
+                submitButton.innerText = "Student Login";
+            }
+            return;
+        }
 
         updateLoaderText("Verifying approval...");
         const snapshot = await firebase.database().ref(`students/${credential.user.uid}`).once("value");
@@ -922,6 +986,32 @@ async function studentLogin() {
             submitButton.disabled = false;
             submitButton.innerText = "Student Login";
         }
+    }
+}
+
+async function resendStudentVerification() {
+    const email = document.getElementById("studentLoginEmail").value.trim().toLowerCase();
+    const password = document.getElementById("studentLoginPassword").value;
+    const message = document.getElementById("studentLoginMessage");
+    if (!email || !password) {
+        message.innerText = "Enter your registration email and password before requesting another verification email.";
+        document.getElementById("studentLoginEmail").focus();
+        return;
+    }
+
+    try {
+        ensureFirebase();
+        const credential = await firebase.auth().signInWithEmailAndPassword(email, password);
+        if (credential.user.emailVerified) {
+            message.innerText = "Your email is already verified. Sign in again.";
+        } else {
+            await credential.user.sendEmailVerification();
+            message.innerText = "A new verification email has been sent. Check your inbox and spam folder.";
+        }
+        await firebase.auth().signOut();
+    } catch (error) {
+        console.error("Could not resend the student verification email.", error);
+        message.innerText = `Verification email could not be sent: ${getFirebaseErrorMessage(error)}`;
     }
 }
 
@@ -990,6 +1080,7 @@ function startSharedInternships() {
         ensureFirebase();
         listenToMetadata();
         loadApplicationsFromFirebase();
+        loadSavedBookmarksFromFirebase();
         firebaseInternshipRef = firebase.database().ref("internships");
         firebaseInternshipRef.on("value", snapshot => {
             const sharedInternships = snapshot.val();
@@ -1047,7 +1138,10 @@ function setAdminAuthenticated(authenticated) {
     if (authenticated) {
         try {
             sessionStorage.setItem("adminAuth", "true");
-        } catch (e) {}
+        } catch (error) {
+            console.error("Application tracker changes could not be prepared for Firebase.", error);
+            alert("Your tracker changed on this device, but could not sync to your account. Email stage updates may not be sent until it syncs.");
+        }
         document.documentElement.classList.remove("is-guest");
         document.documentElement.classList.add("is-authenticated");
     } else {
@@ -1750,15 +1844,6 @@ function findMatches() {
             ? "No current listings match those preferences. Try broadening your search or choosing the other work mode."
             : "No current internships are available yet. Please check back after the next feed update.";
     showPage("results");
-
-    const alertsEnabled = document.getElementById("prefEmailAlerts")?.checked;
-    if (currentStudent && typeof alertsEnabled === "boolean" &&
-        currentStudent.emailAlertsEnabled !== alertsEnabled) {
-        syncEmailAlertsFromFinder(alertsEnabled).catch(error => {
-            console.error("Email alert preference could not be saved from internship matching.", error);
-            resultMessage.innerText += " Your recommendations are ready, but the email alert setting could not be saved. Update it in My Profile and try again.";
-        });
-    }
 }
 
 /* =========================================================
@@ -1962,6 +2047,48 @@ function bookmark(id) {
     updateSavedCount();
     updateBookmarkButtons(id, !isSaved);
     updateSavedInternshipCard(id, !isSaved);
+    syncSavedBookmarksToFirebase();
+}
+
+function syncSavedBookmarksToFirebase() {
+    const user = firebase.apps.length ? firebase.auth().currentUser : null;
+    if (!user || currentStudent?.status !== "approved") return;
+    firebase.database().ref(`students/${user.uid}/savedInternshipIds`).set(bookmarks.map(String))
+        .then(() => localStorage.setItem("legacyBookmarksOwner", user.uid))
+        .catch(error => {
+            console.error("Saved internships could not be synchronized for email updates.", error);
+            alert("Your saved internship changed on this device, but could not sync for email updates. Check your connection and try saving it again.");
+        });
+}
+
+function loadSavedBookmarksFromFirebase() {
+    const user = firebase.apps.length ? firebase.auth().currentUser : null;
+    if (!user || currentStudent?.status !== "approved") return;
+    firebase.database().ref(`students/${user.uid}/savedInternshipIds`).once("value")
+        .then(async snapshot => {
+            const cloudBookmarks = snapshot.val();
+            if (Array.isArray(cloudBookmarks)) {
+                bookmarks = cloudBookmarks.map(String);
+            } else {
+                const mayMigrate = localStorage.getItem("legacyBookmarksOwner") === user.uid;
+                if (!mayMigrate) bookmarks = [];
+                await firebase.database().ref(`students/${user.uid}/savedInternshipIds`).set(bookmarks.map(String));
+            }
+            localStorage.setItem("bookmarks", JSON.stringify(bookmarks));
+            localStorage.setItem("legacyBookmarksOwner", user.uid);
+            updateSavedCount();
+            displaySavedInternships();
+            updateTrackerMetrics();
+        })
+        .catch(error => {
+            console.error("Saved internships could not be loaded from Firebase.", error);
+            const status = document.getElementById("emailAlertStatusMsg");
+            if (status) {
+                status.style.display = "block";
+                status.style.color = "#b91c1c";
+                status.innerText = "Saved roles could not sync with the email update service. Reopen My Profile after checking your connection.";
+            }
+        });
 }
 
 function updateBookmarkButtons(id, isSaved) {
@@ -2264,6 +2391,19 @@ async function restoreFirebaseSession(user) {
 
         const studentSnapshot = await firebase.database().ref(`students/${user.uid}`).once("value");
         const student = studentSnapshot.val();
+        if (!user.emailVerified) {
+            clearStudentSession();
+            await firebase.auth().signOut();
+            document.body.classList.add("auth-locked");
+            const gate = document.getElementById("authGate");
+            if (gate) gate.hidden = false;
+            showStudentLogin();
+            document.getElementById("studentLoginMessage").innerText =
+                "Verify your email using the link sent during registration before signing in.";
+            document.getElementById("resendVerificationButton").hidden = false;
+            hideLoader();
+            return;
+        }
         if (!student || student.status !== "approved") {
             clearStudentSession();
             await firebase.auth().signOut();
@@ -2381,7 +2521,9 @@ function trackInternshipView(internship) {
             ensureFirebase();
             const uid = firebase.auth().currentUser.uid;
             firebase.database().ref(`students/${uid}/viewedInternships`).set(viewedInternships).catch(console.warn);
-        } catch (e) {}
+        } catch (error) {
+            console.error("Application tracker data could not be requested from Firebase.", error);
+        }
     }
     updateTrackerMetrics();
     if (document.getElementById("tracker")?.classList.contains("active")) {
@@ -2403,7 +2545,8 @@ function saveApplications() {
             ensureFirebase();
             const uid = firebase.auth().currentUser.uid;
             firebase.database().ref(`students/${uid}/applications`).set(trackedApplications).catch(err => {
-                console.warn("Could not sync applications to Firebase", err);
+                console.error("Application tracker changes could not sync to Firebase.", err);
+                alert("Your tracker changed on this device, but could not sync to your account. Email stage updates may not be sent until it syncs.");
             });
         } catch (e) {}
     }
@@ -2425,6 +2568,8 @@ function loadApplicationsFromFirebase() {
                     renderTrackerPage();
                 }
             }
+        }).catch(error => {
+            console.error("Application tracker data could not be loaded from Firebase.", error);
         });
         firebase.database().ref(`students/${uid}/viewedInternships`).once("value").then(snapshot => {
             const val = snapshot.val();
@@ -2436,6 +2581,8 @@ function loadApplicationsFromFirebase() {
                     renderTrackerPage();
                 }
             }
+        }).catch(error => {
+            console.error("Viewed internship history could not be loaded from Firebase.", error);
         });
     } catch (e) {}
 }
@@ -4049,34 +4196,6 @@ function generateStudentDigestHtml(student, matches) {
     `;
 }
 
-function previewStudentEmailAlert() {
-    const student = currentStudent || {
-        name: "Student",
-        email: "student@srivasaviengg.ac.in",
-        branch: "Computer Science",
-        rollNumber: "21A81A0501"
-    };
-
-    const matches = student.emailAlertFilter === "all"
-        ? internships.slice(0, 4)
-        : findStudentMatchingInternships(student, 4);
-    const html = generateStudentDigestHtml(student, matches);
-
-    const modal = document.getElementById("emailPreviewModal");
-    const container = document.getElementById("emailPreviewContainer");
-    const meta = document.getElementById("emailPreviewMeta");
-
-    if (meta) {
-        meta.innerText = `Preview for ${student.name} (${student.email}) • ${matches.length} matching opportunities`;
-    }
-
-    if (container) {
-        container.innerHTML = `<iframe srcdoc="${escapeHTML(html).replace(/"/g, '&quot;')}" style="width:100%; height:460px; border:none; border-radius:10px;"></iframe>`;
-    }
-
-    if (modal) modal.classList.add("show");
-}
-
 function previewSampleEmailAlert() {
     const sampleStudent = {
         name: "Sai Krishna",
@@ -4107,20 +4226,6 @@ function previewSampleEmailAlert() {
 function closeEmailPreviewModal() {
     const modal = document.getElementById("emailPreviewModal");
     if (modal) modal.classList.remove("show");
-}
-
-async function sendTestEmailAlert() {
-    const statusMsg = document.getElementById("emailAlertStatusMsg");
-    if (!currentStudent || !currentStudent.email) {
-        alert("Please log in to send a test alert to your email.");
-        return;
-    }
-
-    if (statusMsg) {
-        statusMsg.style.display = "block";
-        statusMsg.style.color = "#b91c1c";
-        statusMsg.innerText = "Test email delivery is not available yet. Preview your digest here; email sending requires the server SMTP setup.";
-    }
 }
 
 async function refreshAdminAlertsDashboard() {
@@ -4233,10 +4338,8 @@ Object.assign(window, {
     markInternshipAsApplied,
     onAtsJobSelect,
     previewSampleEmailAlert,
-    previewStudentEmailAlert,
     refreshAdminAlertsDashboard,
     runAtsAnalysis,
-    sendTestEmailAlert,
     updateApplicationStage,
     updateAtsWordCounts,
     useProfileAsResume,
@@ -4260,6 +4363,7 @@ Object.assign(window, {
     openFounderLogin,
     rejectStudent,
     registerStudent,
+    resendStudentVerification,
     removeViewedInternship,
     resetStudentPassword,
     returnToStudentLogin,
