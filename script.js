@@ -308,6 +308,40 @@ function updateStudentProfile() {
     document.getElementById("profileAvatar").innerText = (student.name || "S").charAt(0).toUpperCase();
 
     const skillsText = Array.isArray(student.skills) ? student.skills.join(", ") : (student.skills || "");
+    const profileEssentials = [
+        student.name,
+        student.email,
+        student.phone,
+        student.rollNumber,
+        student.degree,
+        student.branch,
+        student.gradYear,
+        skillsText,
+        student.preferredLocation
+    ];
+    const completedEssentials = profileEssentials.filter(value => String(value || "").trim()).length;
+    const profileCompletion = Math.round((completedEssentials / profileEssentials.length) * 100);
+    const completionPercent = document.getElementById("profileCompletionPercent");
+    const completionCount = document.getElementById("profileCompletionCount");
+    const completionMeter = document.getElementById("profileCompletionMeter");
+    const completionBar = document.getElementById("profileCompletionBar");
+    const completionHint = document.getElementById("profileCompletionHint");
+    const statusBadge = document.getElementById("profileStatusBadge");
+    if (completionPercent) completionPercent.innerText = `${profileCompletion}%`;
+    if (completionCount) completionCount.innerText = `${completedEssentials} of ${profileEssentials.length} essentials added`;
+    if (completionMeter) completionMeter.setAttribute("aria-valuenow", String(profileCompletion));
+    if (completionBar) completionBar.style.width = `${profileCompletion}%`;
+    if (completionHint) {
+        completionHint.innerText = profileCompletion === 100
+            ? "Looking good. Your profile essentials are complete."
+            : "A few more details can help tailor your internship matches.";
+    }
+    if (statusBadge) {
+        const isApproved = student.status === "approved";
+        statusBadge.className = `profile-status-badge ${isApproved ? "is-approved" : "is-pending"}`;
+        statusBadge.innerText = isApproved ? "✓ Approved student" : "◷ Pending approval";
+    }
+
     const skillsChips = skillsText
         ? skillsText.split(",").map(s => `<span class="tag" style="margin-right:4px;margin-bottom:4px;display:inline-block;">${escapeHTML(s.trim())}</span>`).join("")
         : "<span style='color:#94a3b8;'>No skills added yet</span>";
@@ -378,6 +412,25 @@ function updateStudentProfile() {
             alertToggle.setAttribute("aria-pressed", String(enabledAlertCount > 0));
         }
     }
+}
+
+function submitContactMessage(event) {
+    const form = event.currentTarget;
+    if (!(form instanceof HTMLFormElement) || !form.reportValidity()) return;
+
+    const formData = new FormData(form);
+    const subject = `InternMatch support: ${formData.get("topic")}`;
+    const body = [
+        `Name: ${formData.get("name")}`,
+        `Email: ${formData.get("email")}`,
+        `Phone: ${formData.get("phone") || "Not provided"}`,
+        "",
+        "Message:",
+        formData.get("message")
+    ].join("\n");
+    const status = document.getElementById("contactFormStatus");
+    if (status) status.innerText = "Opening your email app with your message. Review it there and choose Send.";
+    window.location.href = `mailto:Internmatch@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }
 
 async function toggleStudentEmailAlerts() {
@@ -1513,6 +1566,14 @@ function showPage(pageId) {
     if (pageId === "profile") {
         updateStudentProfile();
     }
+    if (pageId === "contact" && currentStudent) {
+        const contactName = document.getElementById("contactName");
+        const contactEmail = document.getElementById("contactEmail");
+        const contactPhone = document.getElementById("contactPhone");
+        if (contactName && !contactName.value) contactName.value = currentStudent.name || "";
+        if (contactEmail && !contactEmail.value) contactEmail.value = currentStudent.email || "";
+        if (contactPhone && !contactPhone.value) contactPhone.value = currentStudent.phone || "";
+    }
 }
 
 function showProfileToolFromHash() {
@@ -2026,7 +2087,7 @@ const FOOTER_INFO = {
             <p><strong>Information used by the site.</strong> Student account details and profile information are stored with Firebase. Saved internships, preferences, and tracker entries are used to provide the features you choose. Some site state is kept in this browser.</p>
             <p><strong>Access and email.</strong> Authorized college administrators can review student account information for approval and account administration. Email alerts are sent only for the categories you enable in your profile. InternMatch does not receive private employer-side application decisions.</p>
             <p><strong>External services.</strong> Sign-in and account data use Firebase. Employer logos may load through Google's favicon service. Application links lead to third-party employer sites, whose privacy practices are separate from InternMatch.</p>
-            <p>For questions about your student account or to request assistance with your information, contact the <a href="mailto:placements@srivasaviengg.ac.in?subject=InternMatch%20privacy%20question">Sri Vasavi Engineering College placement office</a>.</p>
+            <p>For questions about your student account or to request assistance with your information, contact the <a href="mailto:Internmatch@gmail.com?subject=InternMatch%20privacy%20question">Sri Vasavi Engineering College placement office</a>.</p>
         `
     },
     terms: {
@@ -4506,6 +4567,7 @@ Object.assign(window, {
     selectType,
     showDetails,
     showPage,
+    submitContactMessage,
     showRegistration,
     showStudentLogin,
     saveStudentProfile,

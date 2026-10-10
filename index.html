@@ -206,19 +206,56 @@
 
 <!-- ================= STUDENT PROFILE ================= -->
 <section id="profile" class="page">
-    <div class="profile-container">
-        <div class="profile-heading">
-            <div class="profile-avatar" id="profileAvatar">S</div>
+    <div class="profile-page-shell">
+        <div class="profile-page-intro">
             <div>
-                <p class="profile-kicker">Student profile</p>
-                <h2 id="profileName">Student</h2>
-                <p id="profileEmail" class="company"></p>
+                <p class="profile-page-eyebrow">YOUR NEXT CHAPTER</p>
+                <h1>Your profile, <span>your story.</span></h1>
+                <p>Keep your goals, skills, and experience in one place. A stronger profile helps you find opportunities that fit.</p>
             </div>
+            <button class="profile-contact-link" type="button" onclick="showPage('contact')">Need a hand? Contact us <span aria-hidden="true">↗</span></button>
         </div>
-        <button class="secondary-btn profile-edit-toggle" id="profileEditToggle" type="button" onclick="beginProfileEdit()">Edit profile</button>
-        <div class="profile-details" id="profileDetails"></div>
-        <p class="profile-message" id="profileMessage" role="status" aria-live="polite"></p>
-        <form class="profile-edit-form" id="profileEditForm" hidden onsubmit="event.preventDefault(); saveStudentProfile(event);">
+
+        <div class="profile-container">
+            <div class="profile-hero">
+                <div class="profile-heading">
+                    <div class="profile-avatar" id="profileAvatar">S</div>
+                    <div class="profile-identity">
+                        <p class="profile-kicker">PROFILE OVERVIEW</p>
+                        <h2 id="profileName">Student</h2>
+                        <p id="profileEmail" class="company"></p>
+                    </div>
+                </div>
+                <div class="profile-hero-actions">
+                    <span class="profile-status-badge" id="profileStatusBadge">Student account</span>
+                    <button class="secondary-btn profile-edit-toggle" id="profileEditToggle" type="button" onclick="beginProfileEdit()">Edit profile <span aria-hidden="true">↗</span></button>
+                </div>
+            </div>
+            <div class="profile-strength">
+                <div class="profile-strength-copy">
+                    <div>
+                        <p class="profile-kicker">PROFILE STRENGTH</p>
+                        <h3>Make your next move count</h3>
+                        <p id="profileCompletionHint">Add a few details to make your profile more useful.</p>
+                    </div>
+                    <strong class="profile-completion-value" id="profileCompletionPercent">0%</strong>
+                </div>
+                <div class="profile-progress-track" role="progressbar" aria-label="Profile essentials completed" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="profileCompletionMeter">
+                    <span id="profileCompletionBar"></span>
+                </div>
+                <p class="profile-progress-caption"><span id="profileCompletionCount">0 of 9 essentials added</span><button type="button" onclick="beginProfileEdit()">Complete your profile <span aria-hidden="true">→</span></button></p>
+            </div>
+
+            <div class="profile-section-heading">
+                <div>
+                    <p class="profile-kicker">THE DETAILS</p>
+                    <h3>Your student snapshot</h3>
+                </div>
+                <span>Visible only to you</span>
+            </div>
+            <div class="profile-details" id="profileDetails"></div>
+            <p class="profile-message" id="profileMessage" role="status" aria-live="polite"></p>
+            <form class="profile-edit-form" id="profileEditForm" hidden onsubmit="event.preventDefault(); saveStudentProfile(event);">
             <div class="profile-edit-grid">
                 <div class="profile-edit-field"><label for="profileNameInput">Full name *</label><input id="profileNameInput" required maxlength="100"></div>
                 <div class="profile-edit-field"><label for="profilePhoneInput">Phone number *</label><input id="profilePhoneInput" type="tel" maxlength="30" required></div>
@@ -257,30 +294,31 @@
                 <button class="secondary-btn" type="button" onclick="cancelProfileEdit()">Cancel</button>
                 <button class="primary-btn" type="submit">Save profile</button>
             </div>
-        </form>
+            </form>
 
-        <!-- Email Alerts Quick Card -->
-        <div class="profile-alerts-card" id="profileAlertsCard">
-            <div class="profile-alerts-header">
-                <div>
-                    <h3 style="margin:0 0 4px; font-size:16px; color:#0f766e; display:flex; align-items:center; gap:8px;">
-                        📧 Internship Email Alerts
-                        <span class="badge" id="profileAlertStatusBadge" style="background:#dcfce7; color:#15803d; font-size:11px; padding:3px 10px; margin:0;">Active</span>
-                    </h3>
-                    <p style="margin:0; font-size:13px; color:#64748b;" id="profileAlertStatusText">
-                        Choose which internship and tracker changes should trigger email updates.
-                    </p>
+            <!-- Email Alerts Quick Card -->
+            <div class="profile-alerts-card" id="profileAlertsCard">
+                <div class="profile-alerts-header">
+                    <div>
+                        <h3 style="margin:0 0 4px; font-size:16px; color:#0f766e; display:flex; align-items:center; gap:8px;">
+                            📧 Internship Email Alerts
+                            <span class="badge" id="profileAlertStatusBadge" style="background:#dcfce7; color:#15803d; font-size:11px; padding:3px 10px; margin:0;">Active</span>
+                        </h3>
+                        <p style="margin:0; font-size:13px; color:#64748b;" id="profileAlertStatusText">
+                            Choose which internship and tracker changes should trigger email updates.
+                        </p>
+                    </div>
                 </div>
+                <div class="profile-alerts-actions" style="display:flex; gap:10px; margin-top:14px; flex-wrap:wrap;">
+                    <button class="small-primary" type="button" id="toggleStudentEmailAlertsBtn" aria-pressed="false" onclick="toggleStudentEmailAlerts()" style="font-size:13px; padding:8px 14px;">
+                        Enable all email alerts
+                    </button>
+                </div>
+                <div id="emailAlertStatusMsg" style="font-size:12.5px; margin-top:10px; display:none;" role="status"></div>
             </div>
-            <div class="profile-alerts-actions" style="display:flex; gap:10px; margin-top:14px; flex-wrap:wrap;">
-                <button class="small-primary" type="button" id="toggleStudentEmailAlertsBtn" aria-pressed="false" onclick="toggleStudentEmailAlerts()" style="font-size:13px; padding:8px 14px;">
-                    Enable all email alerts
-                </button>
-            </div>
-            <div id="emailAlertStatusMsg" style="font-size:12.5px; margin-top:10px; display:none;" role="status"></div>
-        </div>
 
-        <button class="secondary-btn profile-logout" onclick="studentLogout()">Logout</button>
+            <button class="secondary-btn profile-logout" onclick="studentLogout()">Logout</button>
+        </div>
     </div>
 
     <div class="profile-tools" aria-label="Career tools">
@@ -292,6 +330,67 @@
             <summary>✍️ Cover Letter Generator <span>Create a tailored letter for your target role</span></summary>
             <div class="profile-tool-content" id="coverletterToolContent"></div>
         </details>
+    </div>
+</section>
+
+<!-- ================= CONTACT ================= -->
+<section id="contact" class="page">
+    <div class="contact-page-shell">
+        <div class="contact-intro">
+            <p class="contact-eyebrow"><span></span> HERE WHEN YOU NEED US</p>
+            <h1>Let's make your<br><span>next step simpler.</span></h1>
+            <p>Questions about your account, internships, or the portal? Send a note to the placement office and we’ll help point you in the right direction.</p>
+            <img class="contact-student-visual" src="contact-student-journey.webp" alt="A student exploring internship opportunities and building career skills" width="768" height="1152">
+            <div class="contact-direct-card">
+                <span class="contact-direct-icon" aria-hidden="true">✉</span>
+                <div><span>EMAIL THE PLACEMENT OFFICE</span><a href="mailto:Internmatch@gmail.com?subject=InternMatch%20support">Internmatch@gmail.com</a></div>
+            </div>
+            <p class="contact-note">This student portal does not collect messages on a server. Prepare email opens your email app with the details filled in for you.</p>
+        </div>
+        <div class="contact-form-card">
+            <div class="contact-form-heading">
+                <div>
+                    <p class="contact-form-kicker">CONTACT &amp; SUPPORT</p>
+                    <h2>Tell us what’s on your mind</h2>
+                    <p>Share a little context so your message reaches the right place.</p>
+                </div>
+                <span class="contact-form-mark" aria-hidden="true">↗</span>
+            </div>
+            <form class="contact-form" id="contactForm" onsubmit="event.preventDefault(); submitContactMessage(event);">
+                <div class="contact-field">
+                    <label for="contactName">Your name</label>
+                    <input id="contactName" name="name" autocomplete="name" maxlength="100" placeholder="e.g. Priya Kumar" required>
+                </div>
+                <div class="contact-fields-row">
+                    <div class="contact-field">
+                        <label for="contactEmail">Email address</label>
+                        <input id="contactEmail" name="email" type="email" autocomplete="email" maxlength="254" placeholder="you@example.com" required>
+                    </div>
+                    <div class="contact-field">
+                        <label for="contactPhone">Phone <span>(optional)</span></label>
+                        <input id="contactPhone" name="phone" type="tel" autocomplete="tel" maxlength="30" placeholder="+91 98765 43210">
+                    </div>
+                </div>
+                <div class="contact-field">
+                    <label for="contactTopic">What can we help with?</label>
+                    <select id="contactTopic" name="topic" required>
+                        <option value="" disabled selected>Choose a topic</option>
+                        <option>Student account or sign-in</option>
+                        <option>Internship listing</option>
+                        <option>Application tracker</option>
+                        <option>Portal feedback</option>
+                        <option>Something else</option>
+                    </select>
+                </div>
+                <div class="contact-field">
+                    <label for="contactMessage">Your message</label>
+                    <textarea id="contactMessage" name="message" rows="5" maxlength="2000" placeholder="Tell us how we can help..." required></textarea>
+                </div>
+                <button class="contact-submit" type="submit">Prepare email <span aria-hidden="true">↗</span></button>
+                <p class="contact-form-status" id="contactFormStatus" role="status" aria-live="polite"></p>
+                <p class="contact-form-privacy">Your message stays in your email app until you choose to send it.</p>
+            </form>
+        </div>
     </div>
 </section>
 
@@ -1188,8 +1287,8 @@
         </nav>
         <div class="footer-column footer-contact">
             <h2>Contact &amp; support</h2>
-            <a class="footer-link" href="https://srivasaviengg.ac.in/contact" target="_blank" rel="noopener noreferrer">Contact us</a>
-            <a class="footer-link" href="mailto:placements@srivasaviengg.ac.in?subject=InternMatch%20support">Email support</a>
+            <button type="button" class="footer-link" onclick="showPage('contact')">Contact us</button>
+            <a class="footer-link" href="mailto:Internmatch@gmail.com?subject=InternMatch%20support">Email support</a>
             <button class="footer-assistant-btn" type="button" onclick="window.dispatchEvent(new CustomEvent('internmatch:open-helpdesk'))">
                 Chat with the InternMatch assistant
             </button>
