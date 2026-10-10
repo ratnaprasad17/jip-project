@@ -1003,9 +1003,11 @@ async function studentLogin() {
     } catch (error) {
         hideLoader();
         console.error("Student login failed:", error);
-        message.innerText = error && ["auth/invalid-credential", "auth/wrong-password", "auth/user-not-found"].includes(error.code)
-            ? "Student account not found or password is incorrect. Register first, then use the approved account."
-            : getFirebaseErrorMessage(error);
+        if (error && ["auth/invalid-credential", "auth/wrong-password", "auth/user-not-found"].includes(error.code)) {
+            message.innerText = "Email or password is incorrect. Check your details or select 'Forgot password?' to reset your password.";
+        } else {
+            message.innerText = getFirebaseErrorMessage(error);
+        }
         if (submitButton) {
             submitButton.disabled = false;
             submitButton.innerText = "Student Login";
