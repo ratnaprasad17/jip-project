@@ -213,16 +213,16 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .logo span { color: #111827; }
 
 .nav-logo-img {
-    height: 45px;
-    width: 45px;
+    height: 58px;
+    width: 82px;
     object-fit: contain;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, .96);
-    padding: 2px;
-    box-shadow: 0 2px 8px rgba(15, 118, 110, .15);
+    flex: 0 0 auto;
 }
+.nav-logo-picture { display: flex; align-items: center; }
+.nav-logo-dark { display: none; }
 
 .nav-buttons { display: flex; gap: 10px; }
+.mobile-nav-toggle { display: none; }
 .nav-btn { border: 1px solid transparent; border-radius: 10px; background: transparent; padding: 10px 15px; color: #475569; transition: background-color .2s ease, color .2s ease, border-color .2s ease; }
 .nav-btn:hover { color: #0f766e; background: rgba(15, 118, 110, .06); }
 .nav-btn:focus-visible { outline-color: rgba(15, 118, 110, .45); }
@@ -1353,14 +1353,52 @@ body > footer {
         height: auto;
         min-height: 60px;
         padding: 10px 12px;
-        gap: 8px;
+        gap: 8px 12px;
         flex-wrap: wrap;
     }
     .navbar.nav-scrolled { height: auto; min-height: 56px; padding: 7px 10px; }
-    .nav-buttons { gap: 2px; }
-    .nav-btn { padding: 7px 5px; font-size: 11px; }
-    .nav-logo-img { height: 32px; width: 32px; }
+    .nav-logo-img { height: 50px; width: 70px; }
     .navbar .logo { font-size: 17px; gap: 5px; }
+    .mobile-nav-toggle {
+        display: flex;
+        width: 42px;
+        height: 42px;
+        flex: 0 0 auto;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+        border: 1px solid rgba(15, 118, 110, .18);
+        border-radius: 12px;
+        background: rgba(15, 118, 110, .06);
+        color: #0f766e;
+    }
+    .mobile-nav-toggle span {
+        display: block;
+        width: 18px;
+        height: 2px;
+        border-radius: 2px;
+        background: currentColor;
+        transition: transform .2s ease, opacity .2s ease;
+    }
+    .navbar.nav-open .mobile-nav-toggle span:first-child { transform: translateY(7px) rotate(45deg); }
+    .navbar.nav-open .mobile-nav-toggle span:nth-child(2) { opacity: 0; }
+    .navbar.nav-open .mobile-nav-toggle span:last-child { transform: translateY(-7px) rotate(-45deg); }
+    .nav-buttons {
+        display: none;
+        width: 100%;
+        flex-direction: column;
+        gap: 4px;
+        padding: 8px 0 2px;
+        border-top: 1px solid rgba(148, 163, 184, .2);
+    }
+    .navbar.nav-open .nav-buttons { display: flex; }
+    .nav-btn {
+        width: 100%;
+        padding: 11px 12px;
+        text-align: left;
+        font-size: 14px;
+    }
     .auth-logo-img { width: 56px; height: 56px; }
     .auth-card {
         width: min(290px, calc(100% - 32px));
@@ -1475,9 +1513,9 @@ body > footer {
 }
 
 @media (max-width: 380px) {
-    .navbar { align-items: flex-start; }
-    .nav-buttons { width: 100%; justify-content: space-between; }
-    .nav-btn { flex: 1; }
+    .navbar { align-items: center; }
+    .navbar .logo { font-size: 15px; gap: 4px; }
+    .nav-logo-img { height: 42px; width: 58px; }
     .auth-card { width: min(270px, calc(100% - 32px)); }
     .hero-stats { display: grid; grid-template-columns: repeat(3, 1fr); }
     .hero-stat { min-width: 0; }
@@ -1567,8 +1605,11 @@ body { background: var(--theme-page); color: var(--theme-ink); }
     background: rgba(7, 29, 28, .985);
     box-shadow: 0 9px 26px rgba(0, 0, 0, .28);
 }
+:root[data-theme="dark"] .navbar .nav-logo-light { display: none; }
+:root[data-theme="dark"] .navbar .nav-logo-dark { display: block; }
 :root[data-theme="dark"] .navbar .logo,
 :root[data-theme="dark"] .navbar .logo span { color: #e8fff5; }
+:root[data-theme="dark"] .mobile-nav-toggle { color: #a5e7d7; border-color: #486461; background: rgba(255, 255, 255, .06); }
 :root[data-theme="dark"] .navbar .nav-btn { color: #d2e4dd; }
 :root[data-theme="dark"] .navbar .nav-btn:hover { color: #fff; background: rgba(255, 255, 255, .09); }
 :root[data-theme="dark"] .navbar .logout-nav-btn { color: #ffc4ba; }
@@ -1652,7 +1693,7 @@ body { background: var(--theme-page); color: var(--theme-ink); }
 :root[data-theme="dark"] .chat-india-flag { background: #24443c; color: #a7e4c1 !important; }
 
 @media (max-width: 650px) {
-    #theme-toggle-root { inset: 12px 12px auto auto; }
+    #theme-toggle-root { inset: 12px 62px auto auto; }
     .theme-toggle { width: 40px; height: 40px; }
 }
 

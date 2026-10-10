@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="description" content="Discover verified student and graduate internships across India and globally. Listings from 26 employer job boards with preference-based matching.">
 <title>InternMatch - Find Your Internship</title>
-<link rel="icon" type="image/jpeg" href="vasavi-logo.jpg">
+<link rel="icon" type="image/png" href="jip-favicon.png">
 <script>
     try {
         const savedTheme = localStorage.getItem("siteTheme");
@@ -91,10 +91,18 @@
 <!-- ================= NAVBAR ================= -->
 <nav class="navbar" aria-label="Main navigation">
     <div class="logo">
-        <img src="vasavi-logo.jpg" alt="Sri Vasavi Engineering College" class="nav-logo-img">
+        <picture class="nav-logo-picture">
+            <img src="jip-logo.png" alt="JIP Internship Portal" class="nav-logo-img nav-logo-light">
+            <img src="jip-logo-dark.png" alt="" class="nav-logo-img nav-logo-dark" aria-hidden="true">
+        </picture>
         Intern<span>Match</span>
     </div>
-    <div class="nav-buttons">
+    <button class="mobile-nav-toggle" type="button" aria-label="Open navigation menu" aria-expanded="false" aria-controls="primaryNavigation" onclick="toggleMobileNavigation()">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+    <div class="nav-buttons" id="primaryNavigation">
         <button class="nav-btn" onclick="showPage('home')">Home</button>
         <button class="nav-btn" onclick="showPage('preferences')">Find Internship</button>
         <button class="nav-btn" onclick="showPage('tracker')">Tracker</button>

@@ -1472,7 +1472,28 @@ async function rejectStudent(uid) {
 /* =========================================================
    PAGE NAVIGATION
 ========================================================= */
+function toggleMobileNavigation() {
+    const navbar = document.querySelector(".navbar");
+    const toggle = document.querySelector(".mobile-nav-toggle");
+    if (!navbar || !toggle) return;
+
+    const isOpen = navbar.classList.toggle("nav-open");
+    toggle.setAttribute("aria-expanded", String(isOpen));
+    toggle.setAttribute("aria-label", isOpen ? "Close navigation menu" : "Open navigation menu");
+}
+
+function closeMobileNavigation() {
+    const navbar = document.querySelector(".navbar");
+    const toggle = document.querySelector(".mobile-nav-toggle");
+    if (!navbar || !toggle) return;
+
+    navbar.classList.remove("nav-open");
+    toggle.setAttribute("aria-expanded", "false");
+    toggle.setAttribute("aria-label", "Open navigation menu");
+}
+
 function showPage(pageId) {
+    closeMobileNavigation();
     document.querySelectorAll(".page").forEach(page => page.classList.remove("active"));
     const targetPage = document.getElementById(pageId);
     if (targetPage) targetPage.classList.add("active");
@@ -4494,10 +4515,18 @@ Object.assign(window, {
     submitCustomTracker,
     switchAdminTab,
     switchReviewsTab,
-    togglePassword
+    togglePassword,
+    toggleMobileNavigation
 });
 
 const navbar = document.querySelector(".navbar");
+document.addEventListener("keydown", event => {
+    if (event.key === "Escape" && navbar?.classList.contains("nav-open")) {
+        closeMobileNavigation();
+        document.querySelector(".mobile-nav-toggle")?.focus();
+    }
+});
+
 function updateNavbarScrollState() {
     if (navbar) navbar.classList.toggle("nav-scrolled", window.scrollY > 50);
 }
