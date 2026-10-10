@@ -154,7 +154,7 @@ test("email alerts require real SMTP configuration instead of reporting simulate
     await assert.rejects(createMailTransporter({}), /SMTP_HOST, SMTP_USER, and SMTP_PASS/);
 });
 
-test("dispatchInternshipEmailAlerts sends only to opted-in students and logs delivery counts", async () => {
+test("dispatchInternshipEmailAlerts sends only to opted-in students and logs delivery counts", async (t) => {
     let pushedLog = null;
     const deliveries = [];
     const fakeDatabase = {
@@ -212,7 +212,7 @@ test("dispatchInternshipEmailAlerts sends only to opted-in students and logs del
         }
     });
 
-    test("event alerts include only opted-in new, saved, and application-stage updates", async () => {
+    await t.test("event alerts include only opted-in new, saved, and application-stage updates", async () => {
         const deliveries = [];
         const student = {
             name: "Anil",
@@ -250,7 +250,7 @@ test("dispatchInternshipEmailAlerts sends only to opted-in students and logs del
         assert.match(deliveries[0].html, /Interviewing/);
     });
 
-    test("event alerts do not send categories the student did not select", async () => {
+    await t.test("event alerts do not send categories the student did not select", async () => {
         let sends = 0;
         const result = await dispatchStudentEventAlerts({}, {
             newInternships: [{ id: "new-role", title: "Data Intern" }],
