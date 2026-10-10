@@ -567,8 +567,8 @@ async function saveStudentProfile(event) {
     try {
         const oldPhone = String(currentStudent.phone || "").replace(/\D/g, "").slice(-10);
         const newPhone = updates.phone.replace(/\D/g, "").slice(-10);
-        const oldRollKey = String(currentStudent.rollNumber || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
-        const newRollKey = updates.rollNumber.replace(/[^A-Z0-9]/g, "");
+        const oldRollKey = getRollNumberIndexKey(currentStudent.rollNumber);
+        const newRollKey = getRollNumberIndexKey(updates.rollNumber);
         const changedIndices = [];
 
         if (newPhone !== oldPhone) {
@@ -583,10 +583,6 @@ async function saveStudentProfile(event) {
             updates.phone = newPhone;
         }
         if (newRollKey !== oldRollKey) {
-            if (newRollKey.length < 4) {
-                message.innerText = "Please enter a valid Roll Number.";
-                return;
-            }
             changedIndices.push({
                 ref: database.ref(`unique_indices/rolls/${newRollKey}`),
                 oldKey: oldRollKey ? database.ref(`unique_indices/rolls/${oldRollKey}`) : null
@@ -676,37 +672,43 @@ function isFirebaseConfigured() {
 /* =========================================================
    LOADING SCREEN HELPERS
 ========================================================= */
-function showLoader(text = "Logging you in...") {
+function showLoader(text = "Logging you in...", subText = "Connecting to verified opportunities") {
     document.documentElement.classList.add("showing-loader");
     const overlay = document.getElementById("loadingOverlay");
     if (!overlay) return;
     const loaderText = document.getElementById("loaderText");
+    const loaderSubText = document.getElementById("loaderSubText");
     const content = overlay.querySelector(".loader-content");
 
-    content.classList.remove("success");
-    loaderText.innerText = text;
+    if (content) content.classList.remove("success");
+    if (loaderText) loaderText.innerText = text;
+    if (loaderSubText) loaderSubText.innerText = subText;
     overlay.classList.add("show");
 }
 
-function updateLoaderText(text) {
+function updateLoaderText(text, subText) {
     const loaderText = document.getElementById("loaderText");
+    const loaderSubText = document.getElementById("loaderSubText");
     if (loaderText) loaderText.innerText = text;
+    if (loaderSubText && subText) loaderSubText.innerText = subText;
 }
 
-function showLoaderSuccess(text = "Welcome!", callback) {
+function showLoaderSuccess(text = "Welcome!", callback, subText = "Launching your personalized dashboard...") {
     const overlay = document.getElementById("loadingOverlay");
     if (!overlay) { if (callback) callback(); return; }
     const loaderText = document.getElementById("loaderText");
+    const loaderSubText = document.getElementById("loaderSubText");
     const content = overlay.querySelector(".loader-content");
 
-    content.classList.add("success");
-    loaderText.innerText = text;
+    if (content) content.classList.add("success");
+    if (loaderText) loaderText.innerText = text;
+    if (loaderSubText) loaderSubText.innerText = subText;
     overlay.classList.add("show");
 
     setTimeout(() => {
         hideLoader();
         if (typeof callback === "function") callback();
-    }, 900);
+    }, 1200);
 }
 
 function hideLoader() {
@@ -786,6 +788,14 @@ function ensureFirebase() {
     if (!isFirebaseConfigured()) throw new Error("Firebase is not configured yet.");
     if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
     return firebase.database();
+}
+
+function getRollNumberIndexKey(value) {
+    const rollNumber = String(value || "").trim().toUpperCase();
+    if (!rollNumber) return "";
+    const normalizedKey = rollNumber.replace(/[^A-Z0-9]/g, "");
+    if (normalizedKey) return normalizedKey;
+    return `encoded_${Array.from(rollNumber, character => character.codePointAt(0).toString(16)).join("_")}`;
 }
 
 function getFirebaseErrorMessage(error) {
@@ -873,15 +883,12 @@ async function registerStudent() {
     }
     const cleanPhone = phoneDigits.slice(-10);
 
-    const rollKey = rollNumber.replace(/[^A-Z0-9]/g, "");
-    if (rollKey.length < 4) {
-        message.innerText = "Please enter a valid Roll Number.";
-        return;
-    }
+    const rollKey = getRollNumberIndexKey(rollNumber);
 
     let registrationUser = null;
     let registrationUid = "";
     let profileSaved = false;
+    let registrationStage = "creating the student account";
     const reservedIndices = [];
     if (submitBtn) {
         submitBtn.disabled = true;
@@ -895,6 +902,7 @@ async function registerStudent() {
         registrationUser = credential.user;
         registrationUid = registrationUser.uid;
 
+        registrationStage = "checking the roll number and phone number";
         const database = firebase.database();
         const rollRef = database.ref(`unique_indices/rolls/${rollKey}`);
         const phoneRef = database.ref(`unique_indices/phones/${cleanPhone}`);
@@ -913,6 +921,7 @@ async function registerStudent() {
         }
 
         reservedIndices.push(rollRef, phoneRef);
+        registrationStage = "reserving the roll number and phone number";
         const reservations = await Promise.all([
             rollRef.transaction(current => current === null ? registrationUid : undefined),
             phoneRef.transaction(current => current === null ? registrationUid : undefined)
@@ -923,6 +932,7 @@ async function registerStudent() {
             throw duplicateError;
         }
 
+        registrationStage = "saving the student profile";
         await database.ref(`students/${registrationUid}`).set({
             name,
             email,
@@ -935,6 +945,7 @@ async function registerStudent() {
         });
         profileSaved = true;
 
+        registrationStage = "sending the verification email";
         await registrationUser.sendEmailVerification();
         await firebase.auth().signOut();
         registrationUser = null;
@@ -977,6 +988,9 @@ async function registerStudent() {
             document.getElementById("registrationMessage").innerText =
                 "Your account was created, but the signup verification email could not be sent. Check your details and use the button below to try again.";
             document.getElementById("resendSignupVerificationButton").hidden = false;
+        } else if (error.code === "PERMISSION_DENIED" || error.code === "database/permission-denied") {
+            console.error(`Firebase denied student registration while ${registrationStage}.`, error);
+            message.innerText = `Firebase blocked registration while ${registrationStage}. The deployed Realtime Database rules must allow this signed-in student to read and write their registration data.`;
         } else {
             message.innerText = error.code === "auth/email-already-in-use"
                 ? `❌ The email "${email}" is already registered! Please sign in or use 'Forgot password'.`

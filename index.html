@@ -30,14 +30,52 @@
 <body>
 
 <!-- ================= LOADING OVERLAY ================= -->
-<div id="loadingOverlay" class="loading-overlay show">
-    <div class="loader-content">
-        <img src="vasavi-logo.jpg" alt="College Logo" class="loader-logo-img">
-        <div class="loader-logo">Intern<span>Match</span></div>
-        <div class="loader-spinner"></div>
-        <p class="loader-text" id="loaderText">Loading InternMatch...</p>
-        <div class="loader-dots">
-            <span></span><span></span><span></span>
+<div id="loadingOverlay" class="loading-overlay show" role="status" aria-live="polite">
+    <div class="loader-aurora-bg" aria-hidden="true">
+        <div class="loader-orb orb-1"></div>
+        <div class="loader-orb orb-2"></div>
+        <div class="loader-orb orb-3"></div>
+    </div>
+    <div class="loader-card loader-content">
+        <div class="loader-emblem-wrap">
+            <div class="loader-glow-ring" aria-hidden="true"></div>
+            <div class="loader-emblem-disc">
+                <img src="vasavi-logo.jpg" alt="Sri Vasavi Engineering College" class="loader-logo-img">
+            </div>
+            <div class="loader-sparkle-badge" aria-hidden="true">✦</div>
+        </div>
+
+        <div class="loader-brand-title loader-logo">
+            Intern<span>Match</span>
+        </div>
+
+        <div class="loader-kicker" aria-hidden="true">
+            <span>✦ CAREER GATEWAY ✦</span>
+        </div>
+
+        <div class="loader-stage-indicator">
+            <div class="loader-spinner-concentric loader-spinner">
+                <div class="loader-ring-outer"></div>
+                <div class="loader-ring-inner"></div>
+                <div class="loader-core-pulse"></div>
+            </div>
+            <div class="loader-success-mark" aria-hidden="true">
+                <svg viewBox="0 0 52 52">
+                    <circle class="checkmark-circle" cx="26" cy="26" r="23" fill="none" />
+                    <path class="checkmark-check" fill="none" d="M14 27l7 7 17-17" />
+                </svg>
+            </div>
+        </div>
+
+        <div class="loader-track-wrap" aria-hidden="true">
+            <div class="loader-laser-track">
+                <div class="loader-laser-runner"></div>
+            </div>
+        </div>
+
+        <div class="loader-status-block">
+            <p class="loader-text" id="loaderText">Loading InternMatch...</p>
+            <p class="loader-subtext" id="loaderSubText">Connecting to verified opportunities</p>
         </div>
     </div>
 </div>
@@ -73,7 +111,7 @@
             <label>College Email<input id="registerEmail" name="email" type="email" autocomplete="email" maxlength="254" placeholder="e.g. name@srivasaviengg.ac.in" required></label>
             <label>Phone Number<input id="registerPhone" name="phone" type="tel" autocomplete="tel" inputmode="tel" placeholder="10-digit mobile number" maxlength="15" required></label>
             <label>College / Branch<input id="registerBranch" name="branch" autocomplete="organization" maxlength="120" placeholder="e.g. Sri Vasavi / CSE" required></label>
-            <label>Roll Number<input id="registerRoll" name="rollNumber" autocomplete="off" maxlength="40" placeholder="e.g. 21A81A0501" style="text-transform:uppercase" required></label>
+            <label>Roll Number<input id="registerRoll" name="rollNumber" autocomplete="off" maxlength="40" placeholder="e.g. 21A81A0501" aria-describedby="registerRollHint" style="text-transform:uppercase" required><small id="registerRollHint" class="auth-field-hint">Enter it as issued by your college. Short roll numbers are accepted.</small></label>
             <label class="password-field">Password
                 <input id="registerPassword" name="new-password" type="password" autocomplete="new-password" minlength="6" maxlength="128" placeholder="At least 6 characters" required>
                 <button class="password-toggle" type="button" aria-label="Show password" title="Show password"
@@ -337,15 +375,19 @@
 <section id="contact" class="page">
     <div class="contact-page-shell">
         <div class="contact-intro">
-            <p class="contact-eyebrow"><span></span> HERE WHEN YOU NEED US</p>
-            <h1>Let's make your<br><span>next step simpler.</span></h1>
-            <p>Questions about your account, internships, or the portal? Send a note to the placement office and we’ll help point you in the right direction.</p>
-            <img class="contact-student-visual" src="Futuristic Student Learning in Neon Green.png" alt="A student exploring internship opportunities and building career skills" width="768" height="1152">
-            <div class="contact-direct-card">
-                <span class="contact-direct-icon" aria-hidden="true">✉</span>
-                <div><span>EMAIL THE PLACEMENT OFFICE</span><a href="mailto:Internmatch@gmail.com?subject=InternMatch%20support">Internmatch@gmail.com</a></div>
+            <img class="contact-student-visual" src="contact-student-scene.png" alt="A student exploring internship opportunities and building career skills" width="1024" height="1536" loading="eager" decoding="async">
+            <div class="contact-intro-content">
+                <p class="contact-eyebrow"><span></span> HERE WHEN YOU NEED US</p>
+                <h1>Let's make your<br><span>next step</span><br>simpler.</h1>
+                <p class="contact-intro-desc">Questions about your account, internships, or the portal? Send a note to the placement office and we’ll help point you in the right direction.</p>
             </div>
-            <p class="contact-note">This student portal does not collect messages on a server. Prepare email opens your email app with the details filled in for you.</p>
+            <div class="contact-intro-footer">
+                <div class="contact-direct-card">
+                    <span class="contact-direct-icon" aria-hidden="true">✉</span>
+                    <div><span>EMAIL THE PLACEMENT OFFICE</span><a href="mailto:Internmatch@gmail.com?subject=InternMatch%20support">Internmatch@gmail.com</a></div>
+                </div>
+                <p class="contact-note">This student portal does not collect messages on a server. Prepare email opens your email app with the details filled in for you.</p>
+            </div>
         </div>
         <div class="contact-form-card">
             <div class="contact-form-heading">
