@@ -1,5 +1,14 @@
 import internshipSources from "./functions/sources.json";
 
+const EMAIL_VERIFICATION_LAUNCH_TIME = Date.parse("2026-10-09T17:48:12Z");
+
+function requiresSignupEmailVerification(student, user) {
+    if (student?.emailVerificationRequired !== true) return false;
+
+    const createdAt = Date.parse(user?.metadata?.creationTime || "");
+    return Number.isFinite(createdAt) && createdAt >= EMAIL_VERIFICATION_LAUNCH_TIME;
+}
+
 /* =========================================================
    INTERNSHIP DATA
 ========================================================= */
@@ -955,7 +964,7 @@ async function studentLogin() {
         const snapshot = await firebase.database().ref(`students/${credential.user.uid}`).once("value");
         const student = snapshot.val();
 
-        if (student?.emailVerificationRequired === true && !credential.user.emailVerified) {
+        if (requiresSignupEmailVerification(student, credential.user) && !credential.user.emailVerified) {
             await firebase.auth().signOut();
             hideLoader();
             message.innerText = "Please verify your email using the link sent during signup.";
@@ -2490,7 +2499,7 @@ async function restoreFirebaseSession(user) {
 
         const studentSnapshot = await firebase.database().ref(`students/${user.uid}`).once("value");
         const student = studentSnapshot.val();
-        if (student?.emailVerificationRequired === true && !user.emailVerified) {
+        if (requiresSignupEmailVerification(student, user) && !user.emailVerified) {
             clearStudentSession();
             await firebase.auth().signOut();
             document.body.classList.add("auth-locked");
